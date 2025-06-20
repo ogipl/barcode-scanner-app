@@ -10,18 +10,17 @@ h1 {
     margin-bottom: 20px; /* タイトルとカメラの間に少し余白 */
 }
 
-/* カメラコンテナはそのまま */
+/* カメラコンテナのサイズ調整 */
 .camera-container {
     position: relative;
-    width: 100%;
-    max-width: 640px; /* カメラ映像の最大幅 */
-    margin: 0 auto; /* 中央寄せ */
+    width: 90%; /* 画面幅の90%を使用 */
+    max-width: 320px; /* これを半分（640pxの半分）に設定 */
+    margin: 0 auto 30px auto; /* 中央寄せ、下部に余白 */
     overflow: hidden; /* 枠からはみ出る部分を隠す */
     border: 2px solid #ccc;
     background-color: black; /* 映像がないときに黒背景 */
     height: auto; /* 中身に合わせて高さが自動調整 */
-    min-height: 200px; /* カメラが起動するまでの最低限の高さ */
-    margin-bottom: 30px; /* カメラと情報表示の間に少し余白 */
+    min-height: 150px; /* カメラが起動するまでの最低限の高さ (必要に応じて調整) */
 }
 
 /* html5-qrcodeが挿入する要素に適用 */
@@ -54,7 +53,7 @@ h1 {
     border-radius: 8px;
     background-color: #fff;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    max-width: 640px; /* カメラコンテナと幅を合わせる */
+    max-width: 640px; /* この部分はカメラコンテナの最大幅とは別に設定。変更不要ならこのままでOK */
     margin-left: auto; /* 中央寄せ */
     margin-right: auto; /* 中央寄せ */
 }
@@ -68,37 +67,6 @@ h1 {
     font-weight: bold;
     color: #333;
 }
-
-/* 旧.controlsは不要になったため削除するか、影響しないようにしておく */
-/* .controls {
-    margin-bottom: 30px;
-    padding: 15px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    background-color: #fff;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.controls h2 {
-    color: #555;
-    margin-top: 0;
-}
-
-button {
-    background-color: #007bff;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1em;
-    margin: 5px;
-}
-
-button:hover {
-    background-color: #0056b3;
-} */
-
 
 #debug-info {
     font-size: 0.8em;
