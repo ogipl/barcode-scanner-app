@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRIAL様 検品</title>
+    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+    </head>
+<body>
+    <h1>バーコード検品アプリ</h1>
+
+    <div>
+        <h2>カメラ映像</h2>
+        <video id="camera-feed" autoplay playsinline style="width:100%; max-width: 500px; border: 1px solid black;"></video>
+    </div>
+
+    <div>
+        <h2>スキャン結果</h2>
+        <p>1つ目のバーコード: <span id="barcode1-display">まだスキャンしていません</span></p>
+        <p>2つ目のバーコード: <span id="barcode2-display">まだスキャンしていません</span></p>
+        <p>結果: <strong id="result-display" style="font-size: 2em;">待機中...</strong></p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
