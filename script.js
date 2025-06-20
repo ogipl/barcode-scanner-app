@@ -83,10 +83,17 @@ Quagga.init({
     inputStream: {
         name: "Live",
         type: "LiveStream",
-        target: cameraFeed, // HTMLのvideo要素を指定
-        constraints: { // ★ここが追加・修正された部分★
-            width: { min: 480, ideal: 640, max: 1280 }, // 解像度の幅
-            height: { min: 320, ideal: 480, max: 720 }, // 解像度の高さ
+        // target: cameraFeed, // ← この行はコメントアウトまたは削除された状態です
+        area: { // クロップエリア (任意: カメラ映像の一部のみをスキャンする場合)
+            top: "0%", // 上から0%
+            right: "0%", // 右から0%
+            left: "0%", // 左から0%
+            bottom: "0%" // 下から0%
+        },
+        target: document.querySelector('#camera-feed'), // ← この行が追加されました
+        constraints: {
+            width: { min: 480, ideal: 640, max: 1280 },
+            height: { min: 320, ideal: 480, max: 720 },
             facingMode: "environment" // 背面カメラを優先 (iPhoneの場合)
         },
     },
@@ -138,7 +145,7 @@ Quagga.init({
     resultDisplay.style.color = "blue";
     Quagga.start(); // ここでスキャン開始
 
-    // ★★★ここから前回追加したデバッグコード★★★
+    // ★★★ここからデバッグログの追加部分★★★
     setTimeout(() => {
         if (cameraFeed && cameraFeed.srcObject) {
             const tracks = cameraFeed.srcObject.getTracks();
@@ -157,7 +164,7 @@ Quagga.init({
             updateDebugInfo('cameraFeed or srcObject is null after Quagga.start()!', 'red');
         }
     }, 3000); // Quagga.start()から3秒後にチェック
-    // ★★★ここまで前回追加したデバッグコード★★★
+    // ★★★ここまでデバッグログの追加部分★★★
 });
 
 // =======================================================
