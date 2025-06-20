@@ -38,14 +38,13 @@ async function startScanner() {
 
     const qrCodeConfig = {
         fps: 10,
-        // qrbox のサイズを小さく調整し、スマホ画面に収まるようにする
-        // 例: 縦横150pxの正方形
-        qrbox: { width: 150, height: 150 }, 
+        // qrbox のサイズをさらに小さく調整（例: 120px x 120px）
+        qrbox: { width: 120, height: 120 }, // ここを調整
         videoConstraints: {
             facingMode: { exact: "environment" },
-            // 解像度を少し低めに設定してパフォーマンス改善を試みる
-            width: { ideal: 480 },
-            height: { ideal: 360 },
+            // 解像度は前回動作していたものに戻します
+            width: { ideal: 640 },
+            height: { ideal: 480 },
         },
     };
 
