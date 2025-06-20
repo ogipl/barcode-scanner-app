@@ -1,92 +1,61 @@
 body {
     font-family: sans-serif;
     text-align: center;
-    margin: 0; /* マージンを0にして、paddingで調整 */
-    padding: 10px; /* 全体のパディング */
+    margin: 20px;
     background-color: #f0f0f0;
-    overflow: hidden; /* スクロールバーが表示されないようにする */
-    height: 100vh; /* 画面の高さいっぱいに */
-    display: flex; /* flexboxで要素を縦方向に配置 */
-    flex-direction: column;
-    /* justify-content: space-between; を使用すると要素間に隙間ができるので、
-       今回は各要素の margin-bottom で調整し、flex-growでカメラが広がるようにする */
 }
 
 h1 {
     color: #333;
-    margin-top: 5px; /* タイトルの上マージンをさらに減らす */
-    margin-bottom: 10px; /* タイトルとカメラの間に少し余白 */
-    font-size: 1.6em; /* タイトルをさらに小さくする */
+    margin-bottom: 20px;
 }
 
-/* カメラコンテナのサイズ調整 */
 .camera-container {
     position: relative;
-    width: 90%; /* 画面幅の90%を使用 */
-    max-width: 300px; /* カメラ映像の最大幅を300pxに設定 */
-
-    /* 縦の長さを「幅に対する比率」で指定するアプローチに戻す */
-    padding-bottom: 75%; /* 幅の75%を高さとする (例: 4:3のアスペクト比) */
-    height: 0; /* padding-bottom を使うため高さを0にする */
-    overflow: hidden; /* 高さを超える部分を隠す */
-
-    margin: 0 auto 15px auto; /* 中央寄せ、下部に余白を調整 */
+    width: 100%;
+    max-width: 640px; /* 元のサイズに戻す */
+    margin: 0 auto 30px auto;
+    overflow: hidden;
     border: 2px solid #ccc;
     background-color: black;
-
-    /* flexアイテムとして残りのスペースを埋める */
-    flex-grow: 1;
-    display: flex; /* 内部の #qr-reader を中央に配置するため */
-    justify-content: center;
-    align-items: center;
+    height: auto;
+    min-height: 200px;
 }
 
-/* html5-qrcodeが挿入する要素に直接サイズを適用 */
 #qr-reader {
-    position: absolute; /* 親の .camera-container 内に絶対配置 */
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
     display: block;
 }
 
-/* html5-qrcodeが内部で作成するvideo要素への調整 */
 #qr-reader video {
-    width: 100% !important; /* 親の #qr-reader の幅に合わせる */
-    height: 100% !important; /* 親の #qr-reader の高さに合わせる */
-    display: block;
-    object-fit: cover; /* アスペクト比を保ちつつコンテナにフィット */
-    /* !important を使うことで、html5-qrcodeのインラインスタイルを上書き */
+    width: 100%;
+    height: auto;
 }
 
-/* html5-qrcodeが内部で作成するcanvas要素への調整 */
 #qr-reader canvas {
     position: absolute;
     top: 0;
     left: 0;
-    width: 100% !important;
-    height: 100% !important;
+    width: 100%;
+    height: 100%;
 }
 
-/* 情報表示エリアのスタイル */
 .info-display {
-    margin-bottom: 5px; /* 情報表示とデバッグ情報の間に少し余白を減らす */
-    padding: 8px; /* パディングもさらに減らす */
+    margin-bottom: 30px;
+    padding: 15px;
     border: 1px solid #ddd;
     border-radius: 8px;
     background-color: #fff;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    width: 90%; /* 画面幅に合わせる */
     max-width: 640px;
     margin-left: auto;
     margin-right: auto;
-    font-size: 0.85em; /* 文字を少し小さくする */
 }
 
 .info-display p {
-    margin: 2px 0; /* 各情報行の上下余白をさらに減らす */
-    font-size: 1em;
+    margin: 8px 0;
+    font-size: 1.1em;
 }
 
 .info-display span {
@@ -95,9 +64,7 @@ h1 {
 }
 
 #debug-info {
-    font-size: 0.65em; /* デバッグ情報をさらに小さく */
+    font-size: 0.8em;
     color: #666;
     font-weight: normal;
-    margin-top: auto; /* debug-infoを一番下に寄せる */
-    padding-bottom: 5px; /* 下部マージン */
 }

@@ -40,7 +40,7 @@ async function startScanner() {
         fps: 10,
         // qrbox のサイズを小さく調整し、スマホ画面に収まるようにする
         // 例: 縦横150pxの正方形
-        qrbox: { width: 150, height: 150 },
+        qrbox: { width: 150, height: 150 }, 
         videoConstraints: {
             facingMode: { exact: "environment" },
             // 解像度を少し低めに設定してパフォーマンス改善を試みる
