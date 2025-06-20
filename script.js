@@ -6,7 +6,7 @@ const storedCodeDisplay = document.getElementById('storedCodeDisplay');
 const scannedCodeDisplay = document.getElementById('scannedCodeDisplay');
 const checkResultDisplay = document.getElementById('checkResultDisplay');
 const debugInfoDisplay = document.getElementById('debug-info');
-const scanOverlay = document.getElementById('scan-overlay'); // 新しく追加したオーバーレイ要素
+// const scanOverlay = document.getElementById('scan-overlay'); // これはCSSで制御するので、JSからは参照不要です。削除します。
 
 // グローバル変数
 let html5QrCode;
@@ -74,8 +74,7 @@ async function startScanner() {
         fps: 10, // Frames per second for scanning
         // qrbox のサイズを調整。CSSのカメラ表示サイズに合わせて調整。
         // ここでの qrbox は、スキャン"検出エリア"のサイズ。
-        // ユーザーが視覚的に合わせるための枠はCSSで別途overlayを用意します。
-        qrbox: { width: 200, height: 200 }, // 推奨サイズ。調整可能。
+        qrbox: { width: 250, height: 250 }, // スキャン精度安定のため、このサイズを維持
         videoConstraints: {
             facingMode: { exact: "environment" }, // 背面カメラを強制
             // ideal な解像度は指定せず、ブラウザに最適なものを選ばせることで、
@@ -98,8 +97,6 @@ async function startScanner() {
                     handleBarcodeScan(decodedText); // スキャン結果を処理
 
                     // スキャン結果処理後、一定時間クールダウンを維持
-                    // これにより、同一バーコードの連続スキャンや、次のバーコードが
-                    // 誤って読み込まれることを防ぎます。
                     setTimeout(() => {
                         scanCooldownActive = false;
                         lastScannedCode = null; // クールダウン終了時に前回スキャンコードをリセット
@@ -109,7 +106,7 @@ async function startScanner() {
                         } else {
                             updateStatus('商品バーコードをスキャンしてください', 'blue');
                         }
-                    }, 2500); // 2.5秒のクールダウン (アラートがないため少し長めに)
+                    }, 2500); // 2.5秒のクールダウン (メッセージ確認時間として確保)
 
                 } else if (scanCooldownActive) {
                     updateDebugInfo(`Ignoring scan during cooldown: ${decodedText}`, 'orange'); 
