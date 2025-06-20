@@ -38,15 +38,14 @@ async function startScanner() {
 
     const qrCodeConfig = {
         fps: 10,
-        // qrbox のサイズを、カメラ映像の約半分程度に設定。
-        // これで、カメラ映像全体が小さくなってもスキャンエリアは確保される。
-        qrbox: { width: 200, height: 200 }, // ここを再調整 (前回より少し大きく戻す)
+        // qrbox のサイズを小さく調整し、スマホ画面に収まるようにする
+        // 例: 縦横150pxの正方形
+        qrbox: { width: 150, height: 150 }, // この値に戻します
         videoConstraints: {
             facingMode: { exact: "environment" },
-            // 幅と高さを指定しない (ブラウザに最適なものを選択させる) 
-            // または、最小値のみ指定して柔軟性を持たせる
-            // ideal: の指定は削除
-            // min: { width: 320, height: 240 } // もし必要なら最小解像度を指定
+            // 解像度を少し低めに設定してパフォーマンス改善を試みる
+            width: { ideal: 480 }, // この値に戻します
+            height: { ideal: 360 }, // この値に戻します
         },
     };
 
