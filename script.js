@@ -10,7 +10,8 @@ const debugInfoDisplay = document.getElementById('debug-info');
 // グローバル変数
 let html5QrCode;
 let storedStoreCode = null; // 保持する店舗コード
-let isProcessingScan = false; // スキャン処理中のフラグ (連続スキャン防止)
+let lastScannedCode = null; // 前回スキャンしたコード (重複防止用)
+let scanCooldownActive = false; // クールダウン中のフラグ
 
 // デバッグ情報を表示するためのヘルパー関数
 function updateDebugInfo(message, color = 'grey') {
@@ -29,12 +30,12 @@ async function startScanner() {
 
     const qrCodeRegionId = "qr-reader";
 
-    // 既にインスタンスがあれば停止（念のため）
+    // 既にインスタンスがあれば停止（念のため、もし残っていたら）
     if (html5QrCode && html5QrCode.isScanning) {
         await html5QrCode.stop();
     }
     html5QrCode = new Html5Qrcode(qrCodeRegionId);
-    
+
     const qrCodeConfig = {
         fps: 10,
         qrbox: { width: 250, height: 250 },
@@ -51,15 +52,25 @@ async function startScanner() {
             qrCodeConfig,
             (decodedText, decodedResult) => {
                 // スキャン成功時のコールバック
-                // スキャン処理が連続で走るのを防ぐためのフラグ
-                if (!isProcessingScan) {
-                    isProcessingScan = true;
+                // クールダウン中でない、かつ前回と同じバーコードでない場合のみ処理
+                if (!scanCooldownActive && decodedText !== lastScannedCode) {
+                    scanCooldownActive = true; // クールダウン開始
+                    lastScannedCode = decodedText; // 前回スキャンしたコードを記録
+
                     updateDebugInfo(`Barcode detected: ${decodedText}`, 'green');
                     handleBarcodeScan(decodedText);
-                    // 処理後、少し待ってからフラグをリセットし、次のスキャンを受け付ける
+
+                    // 処理後、少し待ってからクールダウンを解除し、次のスキャンを受け付ける
                     setTimeout(() => {
-                        isProcessingScan = false;
-                    }, 500); // 500ミリ秒 (0.5秒) は調整可能
+                        scanCooldownActive = false;
+                        lastScannedCode = null; // クールダウン終了時に前回スキャンコードをリセット
+                    }, 1500); // 1.5秒のクールダウン (調整可能)
+                } else if (scanCooldownActive) {
+                    // クールダウン中の場合はスキャンを無視
+                    updateDebugInfo(`Ignoring scan during cooldown: ${decodedText}`, 'orange');
+                } else if (decodedText === lastScannedCode) {
+                    // 同じバーコードが連続して検出された場合は無視
+                    updateDebugInfo(`Ignoring duplicate scan: ${decodedText}`, 'orange');
                 }
             },
             (errorMessage) => {
