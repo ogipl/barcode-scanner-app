@@ -3,7 +3,7 @@
 // HTML要素への参照を取得
 const cameraFeed = document.getElementById('camera-feed');
 const resultDisplay = document.getElementById('result');
-const debugInfoDisplay = document.getElementById('debug-info'); // 新しく追加したデバッグ情報表示用の要素
+const debugInfoDisplay = document.getElementById('debug-info');
 
 // デバッグ情報を表示するためのヘルパー関数
 function updateDebugInfo(message, color = 'grey') {
@@ -24,6 +24,15 @@ cameraFeed.addEventListener('loadedmetadata', () => {
     updateDebugInfo(`Video metadata loaded: ${videoWidth}x${videoHeight}`, 'blue');
     resultDisplay.textContent = `カメラ映像メタデータ読み込み完了: ${videoWidth}x${videoHeight}`;
     resultDisplay.style.color = "green";
+
+    // ★ここから追加・修正部分★
+    // srcObjectが設定されているか確認
+    if (cameraFeed.srcObject) {
+        updateDebugInfo('Video srcObject is set.', 'green');
+    } else {
+        updateDebugInfo('Video srcObject is NOT set!', 'red'); // ★これが表示されたら問題★
+    }
+    // ★ここまで追加・修正部分★
 
     // ビデオ要素が再生可能かチェック
     if (cameraFeed.readyState >= cameraFeed.HAVE_CURRENT_DATA) {
@@ -77,7 +86,7 @@ Quagga.init({
         name: "Live",
         type: "LiveStream",
         target: cameraFeed, // HTMLのvideo要素を指定
-        constraints: { // ★ここを追加★
+        constraints: { // ★ここが追加・修正された部分★
             width: { min: 480, ideal: 640, max: 1280 }, // 解像度の幅
             height: { min: 320, ideal: 480, max: 720 }, // 解像度の高さ
             facingMode: "environment" // 背面カメラを優先 (iPhoneの場合)
