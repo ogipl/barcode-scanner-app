@@ -25,14 +25,12 @@ cameraFeed.addEventListener('loadedmetadata', () => {
     resultDisplay.textContent = `カメラ映像メタデータ読み込み完了: ${videoWidth}x${videoHeight}`;
     resultDisplay.style.color = "green";
 
-    // ★ここから追加・修正部分★
     // srcObjectが設定されているか確認
     if (cameraFeed.srcObject) {
         updateDebugInfo('Video srcObject is set.', 'green');
     } else {
-        updateDebugInfo('Video srcObject is NOT set!', 'red'); // ★これが表示されたら問題★
+        updateDebugInfo('Video srcObject is NOT set!', 'red'); // これが表示されたら問題
     }
-    // ★ここまで追加・修正部分★
 
     // ビデオ要素が再生可能かチェック
     if (cameraFeed.readyState >= cameraFeed.HAVE_CURRENT_DATA) {
@@ -138,7 +136,28 @@ Quagga.init({
     updateDebugInfo("QuaggaJS Initialization successful. Starting scan.", 'green');
     resultDisplay.textContent = "最初のバーコードをスキャンしてください";
     resultDisplay.style.color = "blue";
-    Quagga.start();
+    Quagga.start(); // ここでスキャン開始
+
+    // ★★★ここから前回追加したデバッグコード★★★
+    setTimeout(() => {
+        if (cameraFeed && cameraFeed.srcObject) {
+            const tracks = cameraFeed.srcObject.getTracks();
+            if (tracks.length > 0) {
+                updateDebugInfo(`Video stream has ${tracks.length} tracks. First track enabled: ${tracks[0].enabled}`, 'green');
+                // 映像の縦横比を確認する
+                if (cameraFeed.videoWidth > 0 && cameraFeed.videoHeight > 0) {
+                    updateDebugInfo(`Video element reports actual dimensions: ${cameraFeed.videoWidth}x${cameraFeed.videoHeight}`, 'green');
+                } else {
+                    updateDebugInfo('Video element reports 0x0 dimensions after start.', 'orange');
+                }
+            } else {
+                updateDebugInfo('Video srcObject has no tracks!', 'red');
+            }
+        } else {
+            updateDebugInfo('cameraFeed or srcObject is null after Quagga.start()!', 'red');
+        }
+    }, 3000); // Quagga.start()から3秒後にチェック
+    // ★★★ここまで前回追加したデバッグコード★★★
 });
 
 // =======================================================
@@ -171,6 +190,7 @@ Quagga.onProcessed(function(result) {
     const drawingCanvas = Quagga.canvas.dom.overlay;
 
     // 前回の描画をクリア
+    // parseInt()を使用して、属性値が文字列であっても数値として扱われるようにする
     drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
 
     if (result) {
