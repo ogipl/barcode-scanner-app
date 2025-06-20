@@ -10,21 +10,16 @@
     <h1>検品システム</h1>
 
     <div class="controls">
-        <h2>ステップ1: 店舗コードをスキャン</h2>
-        <button onclick="setScanMode('storeCode')">店舗コードスキャン開始</button>
-        <p>読み取った店舗コード: <span id="storeCodeDisplay" style="font-weight: bold;">未スキャン</span></p>
-
-        <h2>ステップ2: 商品バーコードをスキャン</h2>
-        <button onclick="setScanMode('productCode')">商品バーコードスキャン開始</button>
-        <p>読み取った商品バーコード: <span id="productCodeDisplay" style="font-weight: bold;">未スキャン</span></p>
-        <p>検品結果: <span id="resultDisplay" style="font-weight: bold;"></span></p>
+        <p>現在の状態: <span id="currentStateDisplay" style="font-weight: bold;">準備中...</span></p>
+        <p>保持中の店舗コード: <span id="storedCodeDisplay" style="font-weight: bold;">なし</span></p>
+        <p>今回スキャンしたコード: <span id="scannedCodeDisplay" style="font-weight: bold;">なし</span></p>
+        <p>検品結果: <span id="checkResultDisplay" style="font-weight: bold;"></span></p>
     </div>
 
     <div class="camera-container">
         <div id="qr-reader"></div>
     </div>
-    <p id="currentScanMode">現在のスキャンモード: **準備中**</p>
-    <p id="result">スキャン結果: なし</p>
+
     <p id="debug-info" style="color: grey; font-size: 0.8em; margin-top: 10px;"></p>
 
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>

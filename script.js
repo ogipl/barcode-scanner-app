@@ -1,17 +1,16 @@
 // script.js
 
 // HTML要素への参照を取得
-const storeCodeDisplay = document.getElementById('storeCodeDisplay');
-const productCodeDisplay = document.getElementById('productCodeDisplay');
-const resultDisplay = document.getElementById('resultDisplay'); // 検品結果用
-const currentScanModeDisplay = document.getElementById('currentScanMode'); // 現在のスキャンモード表示用
-const appResultDisplay = document.getElementById('result'); // アプリ全体の共通結果表示（以前のresult）
+const currentStateDisplay = document.getElementById('currentStateDisplay');
+const storedCodeDisplay = document.getElementById('storedCodeDisplay');
+const scannedCodeDisplay = document.getElementById('scannedCodeDisplay');
+const checkResultDisplay = document.getElementById('checkResultDisplay'); // 検品結果用
 const debugInfoDisplay = document.getElementById('debug-info');
 
 // グローバル変数
 let html5QrCode;
-let currentScanMode = ''; // 'storeCode' または 'productCode'
 let storedStoreCode = null; // 保持する店舗コード
+let isProcessingScan = false; // スキャン処理中のフラグ (連続スキャン防止)
 
 // デバッグ情報を表示するためのヘルパー関数
 function updateDebugInfo(message, color = 'grey') {
@@ -21,45 +20,26 @@ function updateDebugInfo(message, color = 'grey') {
 }
 
 // =======================================================
-// スキャンモード設定関数
-// =======================================================
-async function setScanMode(mode) {
-    currentScanMode = mode;
-    currentScanModeDisplay.textContent = `現在のスキャンモード: **${mode === 'storeCode' ? '店舗コード' : '商品バーコード'}**`;
-    resultDisplay.textContent = ''; // 検品結果をクリア
-
-    updateDebugInfo(`Scan mode set to: ${mode}`, 'blue');
-    appResultDisplay.textContent = `${mode === 'storeCode' ? '店舗コード' : '商品バーコード'}をスキャンしてください...`;
-    appResultDisplay.style.color = 'blue';
-
-    // スキャンを開始
-    await startScanner();
-}
-
-// =======================================================
-// バーコードスキャン開始関数 (html5-qrcode用)
+// バーコードスキャン開始関数 (html5-qrcode用 - アプリ起動時に一度だけ呼び出す)
 // =======================================================
 async function startScanner() {
-    updateDebugInfo("Initializing HTML5-QRCode scanner...", 'blue');
+    currentStateDisplay.textContent = 'カメラ起動中...';
+    currentStateDisplay.style.color = 'blue';
+    updateDebugInfo("Initializing HTML5-QRCode scanner for continuous scanning...", 'blue');
 
-    const qrCodeRegionId = "qr-reader"; // index.htmlで指定したdivのID
+    const qrCodeRegionId = "qr-reader";
 
-    // 既にインスタンスが存在し、スキャン中であれば停止してから再起動
+    // 既にインスタンスがあれば停止（念のため）
     if (html5QrCode && html5QrCode.isScanning) {
-        await stopScanner();
+        await html5QrCode.stop();
     }
-    // インスタンスがなければ新しく作成
-    if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode(qrCodeRegionId);
-    }
+    html5QrCode = new Html5Qrcode(qrCodeRegionId);
     
-
-    // カメラの制約を設定
     const qrCodeConfig = {
-        fps: 10, // フレームレート
-        qrbox: { width: 250, height: 250 }, // スキャン領域のボックスサイズ (任意)
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
         videoConstraints: {
-            facingMode: { exact: "environment" }, // 背面カメラを厳密に要求
+            facingMode: { exact: "environment" },
             width: { ideal: 640 },
             height: { ideal: 480 },
         },
@@ -71,18 +51,29 @@ async function startScanner() {
             qrCodeConfig,
             (decodedText, decodedResult) => {
                 // スキャン成功時のコールバック
-                updateDebugInfo(`Barcode detected: ${decodedText} in mode: ${currentScanMode}`, 'green');
-                handleBarcodeScan(decodedText); // 新しいハンドリング関数を呼び出す
-                stopScanner(); // スキャン後停止
+                // スキャン処理が連続で走るのを防ぐためのフラグ
+                if (!isProcessingScan) {
+                    isProcessingScan = true;
+                    updateDebugInfo(`Barcode detected: ${decodedText}`, 'green');
+                    handleBarcodeScan(decodedText);
+                    // 処理後、少し待ってからフラグをリセットし、次のスキャンを受け付ける
+                    setTimeout(() => {
+                        isProcessingScan = false;
+                    }, 500); // 500ミリ秒 (0.5秒) は調整可能
+                }
             },
             (errorMessage) => {
-                // スキャンエラー時のコールバック (連続的に発生することがあるので、デバッグ用)
+                // スキャンエラー時のコールバックは通常ログに出さない（大量に出るため）
                 // updateDebugInfo(`Scan Error: ${errorMessage}`, 'orange');
             }
         );
-        updateDebugInfo("Camera started successfully. Ready to scan.", 'green');
-        appResultDisplay.textContent = "バーコードをかざしてください";
-        appResultDisplay.style.color = "blue";
+        updateDebugInfo("Camera started successfully. Ready to scan continuously.", 'green');
+        currentStateDisplay.textContent = '店舗コードをスキャンしてください';
+        currentStateDisplay.style.color = 'black'; // 初期の状態メッセージ
+        storedCodeDisplay.textContent = 'なし';
+        scannedCodeDisplay.textContent = 'なし';
+        checkResultDisplay.textContent = '';
+
 
     } catch (err) {
         updateDebugInfo(`HTML5-QRCode Start Error: ${err.name || err.message || err.toString()}`, 'red');
@@ -102,86 +93,63 @@ async function startScanner() {
         } else {
             errorMessage += ` エラーコード: ${err.name || err.message || '不明'}`;
         }
-        appResultDisplay.textContent = errorMessage;
-        appResultDisplay.style.color = "red";
+        currentStateDisplay.textContent = errorMessage;
+        currentStateDisplay.style.color = "red";
     }
 }
 
 // =======================================================
-// バーコードスキャン停止関数
-// =======================================================
-async function stopScanner() {
-    if (html5QrCode && html5QrCode.isScanning) {
-        try {
-            await html5QrCode.stop();
-            updateDebugInfo("Scanner stopped.", 'grey');
-        } catch (err) {
-            updateDebugInfo(`Error stopping scanner: ${err.name || err.message || err.toString()}`, 'red');
-            console.error("Scanner stop error:", err);
-        }
-    }
-}
-
-// =======================================================
-// バーコードスキャン結果のハンドリング関数
+// バーコードスキャン結果のハンドリング関数 (主要ロジック)
 // =======================================================
 function handleBarcodeScan(scannedCode) {
-    if (currentScanMode === 'storeCode') {
+    scannedCodeDisplay.textContent = scannedCode; // 今回スキャンしたコードを表示
+
+    if (storedStoreCode === null) {
+        // まだ店舗コードが保持されていない場合（最初のスキャン）
         storedStoreCode = scannedCode;
-        storeCodeDisplay.textContent = storedStoreCode;
-        productCodeDisplay.textContent = '未スキャン'; // 商品コード表示をリセット
-        resultDisplay.textContent = ''; // 検品結果をリセット
-        appResultDisplay.textContent = `店舗コードを保持しました: ${storedStoreCode}`;
-        appResultDisplay.style.color = 'green';
-        updateDebugInfo(`Store code stored: ${storedStoreCode}`, 'green');
+        storedCodeDisplay.textContent = storedStoreCode;
+        currentStateDisplay.textContent = '商品バーコードをスキャンしてください';
+        currentStateDisplay.style.color = 'blue';
+        checkResultDisplay.textContent = ''; // 結果をクリア
+        updateDebugInfo(`店舗コードを保持しました: ${storedStoreCode}`, 'green');
         alert(`店舗コードを保存しました: ${storedStoreCode}\n次に商品バーコードをスキャンしてください。`);
 
-    } else if (currentScanMode === 'productCode') {
-        productCodeDisplay.textContent = scannedCode;
-        updateDebugInfo(`Product code scanned: ${scannedCode}`, 'green');
-
-        if (storedStoreCode === null) {
-            resultDisplay.textContent = 'エラー: 店舗コードが先にスキャンされていません！';
-            resultDisplay.style.color = 'red';
-            appResultDisplay.textContent = 'エラー: 店舗コードが先にスキャンされていません！';
-            appResultDisplay.style.color = 'red';
-            updateDebugInfo('Error: Store code not scanned yet.', 'red');
-            alert('エラー: 店舗コードが先にスキャンされていません！');
-            return;
-        }
-
+    } else {
+        // 店舗コードが既に保持されている場合（2回目のスキャン = 商品バーコード）
         if (scannedCode === storedStoreCode) {
-            resultDisplay.textContent = 'OK';
-            resultDisplay.style.color = 'green';
-            appResultDisplay.textContent = '検品結果: OK';
-            appResultDisplay.style.color = 'green';
-            updateDebugInfo('Result: OK (Codes match)', 'green');
+            checkResultDisplay.textContent = 'OK';
+            checkResultDisplay.style.color = 'green';
+            currentStateDisplay.textContent = '検品完了: OK！次の店舗コードをスキャンしてください';
+            currentStateDisplay.style.color = 'green';
+            updateDebugInfo('検品結果: OK (コード一致)', 'green');
             alert('検品結果: OK');
         } else {
-            resultDisplay.textContent = 'NG';
-            resultDisplay.style.color = 'red';
-            appResultDisplay.textContent = '検品結果: NG';
-            appResultDisplay.style.color = 'red';
-            updateDebugInfo('Result: NG (Codes mismatch)', 'red');
+            checkResultDisplay.textContent = 'NG';
+            checkResultDisplay.style.color = 'red';
+            currentStateDisplay.textContent = '検品完了: NG...次の店舗コードをスキャンしてください';
+            currentStateDisplay.style.color = 'red';
+            updateDebugInfo('検品結果: NG (コード不一致)', 'red');
             alert(`検品結果: NG\n店舗コード: ${storedStoreCode}\n商品コード: ${scannedCode}`);
         }
-        storedStoreCode = null; // 検品が完了したら店舗コードをリセット
-    } else {
-        updateDebugInfo('No scan mode set. Please click a scan button.', 'orange');
-        appResultDisplay.textContent = 'スキャンモードを選択してください。';
-        appResultDisplay.style.color = 'orange';
+        // 検品が完了したら、次のサイクルに備えて店舗コードをリセット
+        storedStoreCode = null;
+        storedCodeDisplay.textContent = 'なし';
     }
 }
 
-// ページロード時に何もスキャンモードが設定されていない状態にする
+// ページロード時にスキャナーを自動開始
 document.addEventListener('DOMContentLoaded', () => {
-    currentScanModeDisplay.textContent = `現在のスキャンモード: **未選択**`;
-    appResultDisplay.textContent = 'スキャンを開始するには、上のボタンを押してください。';
-    appResultDisplay.style.color = 'black';
-    updateDebugInfo('Application loaded. Awaiting scan mode selection.', 'grey');
+    startScanner();
 });
 
 // アプリケーションが閉じられる前にスキャナーを停止する (任意)
-window.addEventListener('beforeunload', () => {
-    stopScanner();
+window.addEventListener('beforeunload', async () => {
+    if (html5QrCode && html5QrCode.isScanning) {
+        try {
+            await html5QrCode.stop();
+            updateDebugInfo("Scanner stopped on unload.", 'grey');
+        } catch (err) {
+            console.error("Error stopping scanner on unload:", err);
+        }
+    }
 });
