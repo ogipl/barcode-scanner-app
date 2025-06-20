@@ -1,7 +1,6 @@
 // script.js
 
-// HTML要素への参照を取得
-const cameraFeed = document.getElementById('camera-feed');
+// HTML要素への参照を取得 (html5-qrcodeでは、video要素を直接操作することは少なくなります)
 const resultDisplay = document.getElementById('result');
 const debugInfoDisplay = document.getElementById('debug-info');
 
@@ -12,151 +11,82 @@ function updateDebugInfo(message, color = 'grey') {
     console.log(`[DEBUG] ${message}`); // コンソールにも出力
 }
 
-// =======================================================
-// Video要素に関するイベントリスナー
-// カメラ映像のロード状況や再生状態を詳細に把握するために追加
-// =======================================================
+// html5-qrcodeのインスタンス
+let html5QrCode;
 
-// ビデオのメタデータ（幅、高さなど）が読み込まれたときに発火
-cameraFeed.addEventListener('loadedmetadata', () => {
-    const videoWidth = cameraFeed.videoWidth;
-    const videoHeight = cameraFeed.videoHeight;
-    updateDebugInfo(`Video metadata loaded: ${videoWidth}x${videoHeight}`, 'blue');
-    resultDisplay.textContent = `カメラ映像メタデータ読み込み完了: ${videoWidth}x${videoHeight}`;
-    resultDisplay.style.color = "green";
+// =======================================================
+// バーコードスキャン開始関数 (html5-qrcode用)
+// =======================================================
+async function startScanner() {
+    resultDisplay.textContent = "カメラ起動中...";
+    resultDisplay.style.color = "blue";
+    updateDebugInfo("Initializing HTML5-QRCode scanner...", 'blue');
 
-    // srcObjectが設定されているか確認
-    if (cameraFeed.srcObject) {
-        updateDebugInfo('Video srcObject is set.', 'green');
-    } else {
-        updateDebugInfo('Video srcObject is NOT set!', 'red'); // これが表示されたら問題
+    const qrCodeRegionId = "qr-reader"; // index.htmlで指定したdivのID
+
+    // 既にインスタンスが存在し、スキャン中であれば停止してから再起動
+    if (html5QrCode && html5QrCode.isScanning) {
+        await stopScanner();
+    }
+    // インスタンスがなければ新しく作成
+    if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode(qrCodeRegionId);
     }
 
-    // ビデオ要素が再生可能かチェック
-    if (cameraFeed.readyState >= cameraFeed.HAVE_CURRENT_DATA) {
-        updateDebugInfo('Video is ready to play state (HAVE_CURRENT_DATA).', 'blue');
-        // 実際に映像が表示されるか確認するため、強制的に再生を試みる
-        cameraFeed.play().then(() => {
-            updateDebugInfo('Video play() command successful.', 'green');
-        }).catch(e => {
-            // 自動再生がブロックされた場合などに発生
-            updateDebugInfo(`Video auto-play failed: ${e.name} - ${e.message}`, 'red');
-            resultDisplay.textContent = `自動再生失敗: ${e.name} - ${e.message}`;
-            resultDisplay.style.color = "red";
-        });
-    } else {
-        updateDebugInfo(`Video readyState: ${cameraFeed.readyState}`, 'orange');
-    }
-});
 
-// ビデオ要素でエラーが発生した場合
-cameraFeed.addEventListener('error', (e) => {
-    updateDebugInfo(`Video element error: ${e.name || e.message || e.toString()}`, 'red');
-    resultDisplay.textContent = `ビデオ要素エラー: ${e.name || e.message || e.toString()}`;
-    resultDisplay.style.color = "red";
-    // 詳細なエラーオブジェクトを出力してデバッグに役立てる
-    console.error("Full video element error object:", e);
-});
+    // カメラの制約を設定
+    const qrCodeConfig = {
+        fps: 10, // フレームレート
+        qrbox: { width: 250, height: 250 }, // スキャン領域のボックスサイズ (任意)
+        // ルックアップオーダーで制約を設定
+        // 1. 環境設定 (背面カメラ優先)
+        // 2. 幅と高さの理想値
+        // 3. 幅と高さの最小値
+        videoConstraints: {
+            facingMode: { exact: "environment" }, // 背面カメラを厳密に要求
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            // min/maxを設定することも可能ですが、idealが推奨されます
+        },
+        // preferFrontCamera: false, // 前面カメラを優先しない（背面カメラを優先）
+        // disableFlip: false, // スキャン画像を反転しない
+    };
 
-// ビデオが実際に再生を開始したときに発火
-cameraFeed.addEventListener('playing', () => {
-    updateDebugInfo('Video is actually playing!', 'green');
-    resultDisplay.textContent = "カメラ映像が再生中！";
-    resultDisplay.style.color = "green";
-});
-
-// ビデオが一時停止したときに発火 (デバッグ用)
-cameraFeed.addEventListener('pause', () => {
-    updateDebugInfo('Video paused.', 'orange');
-});
-
-// ビデオが停止したときに発火 (デバッグ用)
-cameraFeed.addEventListener('ended', () => {
-    updateDebugInfo('Video ended.', 'orange');
-});
-
-// =======================================================
-// カメラを起動し、QuaggaJSを初期化する関数
-// =======================================================
-async function initBarcodeScanner() {
-    updateDebugInfo("Attempting to get camera media stream...", 'blue');
     try {
-        // WebRTCのgetUserMediaを使って直接カメラ映像ストリームを取得
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { min: 480, ideal: 640, max: 1280 },
-                height: { min: 320, ideal: 480, max: 720 },
-                facingMode: "environment" // 背面カメラを優先 (iPhoneの場合)
+        // スキャンを開始
+        await html5QrCode.start(
+            qrCodeConfig.videoConstraints, // カメラ制約
+            qrCodeConfig, // 設定
+            (decodedText, decodedResult) => {
+                // スキャン成功時のコールバック
+                updateDebugInfo(`Barcode detected: ${decodedText}`, 'green');
+                resultDisplay.textContent = `スキャン結果: ${decodedText}`;
+                resultDisplay.style.color = "green";
+                console.log("Barcode detected:", decodedText, decodedResult);
+
+                // スキャンを停止 (連続スキャンを防ぐため)
+                stopScanner();
+
+                // ここでサーバーにデータを送信するなどの処理を追加できます
+                // 例: google.script.run.saveStoreCode(decodedText);
+            },
+            (errorMessage) => {
+                // スキャンエラー時のコールバック (連続的に発生することがあるので、デバッグ用)
+                // updateDebugInfo(`Scan Error: ${errorMessage}`, 'orange'); // これは大量に出る可能性があるので通常はコメントアウト
             }
-        });
-        updateDebugInfo("Camera stream obtained successfully.", 'green');
-        
-        // 取得したストリームをvideo要素に設定
-        cameraFeed.srcObject = stream;
-        cameraFeed.play().then(() => {
-            updateDebugInfo('Video play() after getUserMedia successful.', 'green');
-
-            // QuaggaJSを初期化
-            Quagga.init({
-                inputStream: {
-                    name: "Live",
-                    type: "LiveStream",
-                    // ここではtargetをvideo要素自体にする
-                    target: cameraFeed, // 直接cameraFeed要素を渡す
-                    area: {
-                        top: "0%",
-                        right: "0%",
-                        left: "0%",
-                        bottom: "0%"
-                    },
-                    // constraintsはgetUserMediaで指定したので、ここでは不要
-                },
-                decoder: {
-                    readers: ["code_39_reader"],
-                    debug: {
-                        showCanvas: false,
-                        showPatches: false,
-                        showFoundPatches: false,
-                        showSkeleton: false,
-                        showLabels: false,
-                        showPatchLabels: false,
-                        showRemainingPatchLabels: false,
-                        boxFromPatches: {
-                            showTransformed: false,
-                            showTransformedBox: false,
-                            showBB: false
-                        }
-                    }
-                },
-                locate: true
-            }, function(err) {
-                if (err) {
-                    updateDebugInfo(`QuaggaJS Init Error after stream: ${err.name || err.message || err.toString()}`, 'red');
-                    console.error("QuaggaJS 初期化エラー詳細 (after stream):", err);
-                    resultDisplay.textContent = `カメラの起動に失敗しました: ${err.name || err.message || '不明'}`;
-                    resultDisplay.style.color = "red";
-                    alert(resultDisplay.textContent);
-                    return;
-                }
-                updateDebugInfo("QuaggaJS Initialization successful. Starting scan.", 'green');
-                resultDisplay.textContent = "最初のバーコードをスキャンしてください";
-                resultDisplay.style.color = "blue";
-                Quagga.start();
-            });
-
-        }).catch(e => {
-            updateDebugInfo(`Video play() after getUserMedia failed: ${e.name} - ${e.message}`, 'red');
-            resultDisplay.textContent = `ビデオ再生失敗: ${e.name} - ${e.message}`;
-            resultDisplay.style.color = "red";
-        });
+        );
+        updateDebugInfo("Camera started successfully. Ready to scan.", 'green');
+        resultDisplay.textContent = "バーコードをかざしてください";
+        resultDisplay.style.color = "blue";
 
     } catch (err) {
-        updateDebugInfo(`getUserMedia Error: ${err.name || err.message || err.toString()}`, 'red');
-        console.error("getUserMedia 詳細エラー:", err);
+        // カメラ起動失敗時のエラーハンドリング
+        updateDebugInfo(`HTML5-QRCode Start Error: ${err.name || err.message || err.toString()}`, 'red');
+        console.error("HTML5-QRCode 起動エラー詳細:", err);
 
-        let errorMessage = "カメラのアクセスに失敗しました。";
+        let errorMessage = "カメラの起動に失敗しました。";
         if (err.name === 'NotAllowedError') {
-            errorMessage += " アクセスが拒否されました。ブラウザの許可設定とiPhoneの設定（プライバシー->カメラ）を確認してください。";
+            errorMessage += " カメラへのアクセスが拒否されました。ブラウザの許可設定とiPhoneの設定（プライバシー->カメラ）を確認してください。";
         } else if (err.name === 'NotFoundError') {
             errorMessage += " カメラが見つかりませんでした。";
         } else if (err.name === 'NotReadableError') {
@@ -170,68 +100,32 @@ async function initBarcodeScanner() {
         }
         resultDisplay.textContent = errorMessage;
         resultDisplay.style.color = "red";
-        alert(errorMessage);
+        // alert(errorMessage); // アラートはユーザー体験を損ねるのでコメントアウト
     }
 }
 
-// ページロード時にバーコードスキャナーを初期化する
-// DOMContentLoadedで確実にHTML要素が利用可能になってから実行
+// =======================================================
+// バーコードスキャン停止関数
+// =======================================================
+async function stopScanner() {
+    if (html5QrCode && html5QrCode.isScanning) {
+        try {
+            await html5QrCode.stop();
+            updateDebugInfo("Scanner stopped.", 'grey');
+        } catch (err) {
+            updateDebugInfo(`Error stopping scanner: ${err.name || err.message || err.toString()}`, 'red');
+            console.error("Scanner stop error:", err);
+        }
+    }
+}
+
+// ページロード時にスキャナーを自動開始
 document.addEventListener('DOMContentLoaded', () => {
-    initBarcodeScanner();
+    // 適切なタイミングでstartScannerを呼び出す
+    startScanner();
 });
 
-
-// =======================================================
-// バーコード検出時のイベントハンドラ
-// =======================================================
-
-Quagga.onDetected(function(result) {
-    const code = result.codeResult.code;
-    if (code) { // コードが検出された場合のみ表示
-        resultDisplay.textContent = `スキャン結果: ${code}`;
-        resultDisplay.style.color = "green";
-        updateDebugInfo(`Barcode detected: ${code}`, 'green');
-        console.log("Barcode detected:", code);
-
-        // 必要に応じて、スキャン後にQuaggaを一時停止し、重複スキャンを防ぐ
-        // Quagga.stop();
-        // setTimeout(() => Quagga.start(), 2000); // 2秒後にスキャン再開
-    } else {
-        updateDebugInfo('No barcode code in result.', 'orange');
-    }
-});
-
-// =======================================================
-// 映像処理時のイベントハンドラ (デバッグ描画用)
-// =======================================================
-
-Quagga.onProcessed(function(result) {
-    // 描画用のCanvasコンテキストを取得
-    const drawingCtx = Quagga.canvas.ctx.overlay;
-    const drawingCanvas = Quagga.canvas.dom.overlay;
-
-    // 前回の描画をクリア
-    // parseInt()を使用して、属性値が文字列であっても数値として扱われるようにする
-    drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
-
-    if (result) {
-        // 検出された全てのボックスを描画 (メインのボックス以外)
-        if (result.boxes) {
-            result.boxes.filter(function (box) {
-                return box !== result.box;
-            }).forEach(function (box) {
-                Quagga.ImageDebug.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
-            });
-        }
-
-        // メインのバーコードのボックスを描画
-        if (result.box) {
-            Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCtx, {color: "#00F", lineWidth: 2});
-        }
-
-        // 検出されたバーコードの線を描画
-        if (result.codeResult && result.codeResult.code) {
-            Quagga.ImageDebug.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: "red", lineWidth: 3});
-        }
-    }
+// アプリケーションが閉じられる前にスキャナーを停止する (任意)
+window.addEventListener('beforeunload', () => {
+    stopScanner();
 });

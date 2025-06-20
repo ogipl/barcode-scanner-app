@@ -9,13 +9,12 @@
 <body>
     <h1>バーコードスキャン</h1>
     <div class="camera-container">
-        <video id="camera-feed" autoplay muted playsinline></video>
-        <canvas class="drawingBuffer"></canvas>
+        <div id="qr-reader" style="width:100%; height: auto;"></div>
     </div>
     <p id="result">準備中...</p>
     <p id="debug-info" style="color: grey; font-size: 0.8em; margin-top: 10px;"></p>
 
-    <script src="quagga.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
