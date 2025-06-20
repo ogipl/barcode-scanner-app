@@ -1,35 +1,89 @@
-// バーコードスキャンで取得した値を格納する変数
-let barcode1 = null; // 1つ目のバーコード
-let barcode2 = null; // 2つ目のバーコード
+// script.js
 
 // HTML要素への参照を取得
-const barcode1Display = document.getElementById('barcode1-display');
-const barcode2Display = document.getElementById('barcode2-display');
-const resultDisplay = document.getElementById('result-display');
 const cameraFeed = document.getElementById('camera-feed');
+const resultDisplay = document.getElementById('result');
+const debugInfoDisplay = document.getElementById('debug-info'); // 新しく追加したデバッグ情報表示用の要素
 
-// 連続スキャン防止のための変数
-let lastDetectedCode = null;
-let lastDetectionTime = 0;
+// デバッグ情報を表示するためのヘルパー関数
+function updateDebugInfo(message, color = 'grey') {
+    debugInfoDisplay.textContent = `Debug: ${new Date().toLocaleTimeString()} - ${message}`;
+    debugInfoDisplay.style.color = color;
+    console.log(`[DEBUG] ${message}`); // コンソールにも出力
+}
 
-// QuaggaJS の初期設定とカメラの起動
-function startScanner() {
-    // 既にスキャナーが起動している場合は一度停止する
-    if (Quagga.initialized) {
-        Quagga.stop();
+// =======================================================
+// Video要素に関するイベントリスナー
+// カメラ映像のロード状況や再生状態を詳細に把握するために追加
+// =======================================================
+
+// ビデオのメタデータ（幅、高さなど）が読み込まれたときに発火
+cameraFeed.addEventListener('loadedmetadata', () => {
+    const videoWidth = cameraFeed.videoWidth;
+    const videoHeight = cameraFeed.videoHeight;
+    updateDebugInfo(`Video metadata loaded: ${videoWidth}x${videoHeight}`, 'blue');
+    resultDisplay.textContent = `カメラ映像メタデータ読み込み完了: ${videoWidth}x${videoHeight}`;
+    resultDisplay.style.color = "green";
+
+    // ビデオ要素が再生可能かチェック
+    if (cameraFeed.readyState >= cameraFeed.HAVE_CURRENT_DATA) {
+        updateDebugInfo('Video is ready to play state (HAVE_CURRENT_DATA).', 'blue');
+        // 実際に映像が表示されるか確認するため、強制的に再生を試みる
+        cameraFeed.play().then(() => {
+            updateDebugInfo('Video play() command successful.', 'green');
+        }).catch(e => {
+            // 自動再生がブロックされた場合などに発生
+            updateDebugInfo(`Video auto-play failed: ${e.name} - ${e.message}`, 'red');
+            resultDisplay.textContent = `自動再生失敗: ${e.name} - ${e.message}`;
+            resultDisplay.style.color = "red";
+        });
+    } else {
+        updateDebugInfo(`Video readyState: ${cameraFeed.readyState}`, 'orange');
     }
+});
+
+// ビデオ要素でエラーが発生した場合
+cameraFeed.addEventListener('error', (e) => {
+    updateDebugInfo(`Video element error: ${e.name || e.message || e.toString()}`, 'red');
+    resultDisplay.textContent = `ビデオ要素エラー: ${e.name || e.message || e.toString()}`;
+    resultDisplay.style.color = "red";
+    // 詳細なエラーオブジェクトを出力してデバッグに役立てる
+    console.error("Full video element error object:", e);
+});
+
+// ビデオが実際に再生を開始したときに発火
+cameraFeed.addEventListener('playing', () => {
+    updateDebugInfo('Video is actually playing!', 'green');
+    resultDisplay.textContent = "カメラ映像が再生中！";
+    resultDisplay.style.color = "green";
+});
+
+// ビデオが一時停止したときに発火 (デバッグ用)
+cameraFeed.addEventListener('pause', () => {
+    updateDebugInfo('Video paused.', 'orange');
+});
+
+// ビデオが停止したときに発火 (デバッグ用)
+cameraFeed.addEventListener('ended', () => {
+    updateDebugInfo('Video ended.', 'orange');
+});
+
+// =======================================================
+// QuaggaJSの初期化と設定
+// =======================================================
 
 Quagga.init({
     inputStream: {
         name: "Live",
         type: "LiveStream",
         target: cameraFeed, // HTMLのvideo要素を指定
-
+        // constraints: {} は削除済みのまま (カメラ設定を自動調整させるため)
     },
     decoder: {
-        readers: ["code_39_reader"], // CODE39 を読み取る設定
+        readers: ["code_39_reader"], // 他にも必要なら追加: ["ean_reader", "code_128_reader", ...]
         debug: {
-            showCanvas: false,
+            // デバッグ表示設定。不要な場合はfalseにするか、このオブジェクトを削除
+            showCanvas: false, // 検出領域などをCanvasに描画するか
             showPatches: false,
             showFoundPatches: false,
             showSkeleton: false,
@@ -43,101 +97,88 @@ Quagga.init({
             }
         }
     },
-    locate: true
+    locate: true // バーコードの位置特定を有効にする
 }, function(err) {
     if (err) {
-        console.error("QuaggaJS 初期化エラー:", err);
-        resultDisplay.textContent = "カメラの起動に失敗しました。ブラウザの設定や他のアプリがカメラを使用していないか確認してください。";
+        // QuaggaJS初期化時のエラーハンドリング
+        updateDebugInfo(`QuaggaJS Init Error: ${err.name || err.message || err.toString()}`, 'red');
+        console.error("QuaggaJS 初期化エラー詳細:", err);
+
+        let errorMessage = "カメラの起動に失敗しました。";
+        if (err.name === 'NotAllowedError') {
+            errorMessage += " カメラへのアクセスが拒否されました。ブラウザの許可設定を確認してください。";
+        } else if (err.name === 'NotFoundError') {
+            errorMessage += " カメラが見つかりませんでした。接続を確認してください。";
+        } else if (err.name === 'NotReadableError') {
+            errorMessage += " カメラが使用中です。他のアプリやタブを閉じてください。";
+        } else if (err.name === 'OverconstrainedError') {
+            errorMessage += " カメラ設定（解像度など）がデバイスでサポートされていません。";
+        } else if (err.name === 'AbortError') {
+            errorMessage += " カメラアクセスが中断されました。";
+        } else {
+            errorMessage += ` エラーコード: ${err.name || err.message || '不明'}`;
+        }
+        resultDisplay.textContent = errorMessage;
         resultDisplay.style.color = "red";
-        alert("カメラの起動に失敗しました。ブラウザの設定や他のアプリがカメラを使用していないか確認してください。");
+        alert(errorMessage); // アラートも表示して、ユーザーに分かりやすくする
         return;
     }
-    console.log("QuaggaJS 初期化成功。スキャンを開始します。");
+    updateDebugInfo("QuaggaJS Initialization successful. Starting scan.", 'green');
     resultDisplay.textContent = "最初のバーコードをスキャンしてください";
     resultDisplay.style.color = "blue";
     Quagga.start();
 });
 
-    // バーコードが検出された時の処理
-    Quagga.onDetected(function(result) {
-        // 同じバーコードを連続で読み込まないように、短い時間で重複を避ける
-        if (result.codeResult.code === lastDetectedCode && (new Date().getTime() - lastDetectionTime < 1000)) {
-            return; // 1秒以内に同じコードが検出されたら無視
-        }
+// =======================================================
+// バーコード検出時のイベントハンドラ
+// =======================================================
 
-        const code = result.codeResult.code; // 検出されたバーコードの値
+Quagga.onDetected(function(result) {
+    const code = result.codeResult.code;
+    if (code) { // コードが検出された場合のみ表示
+        resultDisplay.textContent = `スキャン結果: ${code}`;
+        resultDisplay.style.color = "green";
+        updateDebugInfo(`Barcode detected: ${code}`, 'green');
+        console.log("Barcode detected:", code);
 
-        console.log("バーコード検出:", code);
-
-        // 最初のバーコードがまだスキャンされていない場合
-        if (barcode1 === null) {
-            barcode1 = code;
-            barcode1Display.textContent = code;
-            barcode2Display.textContent = "まだスキャンしていません";
-            resultDisplay.textContent = "2つ目のバーコードをスキャンしてください";
-            resultDisplay.style.color = "orange";
-        }
-        // 2つ目のバーコードがスキャンされた場合
-        else {
-            barcode2 = code;
-            barcode2Display.textContent = code;
-
-            // 2つのバーコードを比較
-            if (barcode1 === barcode2) {
-                resultDisplay.textContent = "OK！一致しました！";
-                resultDisplay.style.color = "green";
-                // 比較後、次のスキャンのために値をリセット
-                barcode1 = null;
-                barcode2 = null;
-            } else {
-                resultDisplay.textContent = "NG！一致しません！";
-                resultDisplay.style.color = "red";
-                // 不一致の場合も次のスキャンのために値をリセット
-                barcode1 = null;
-                barcode2 = null;
-            }
-        }
-
-        // 連続スキャンを防ぐための設定を更新
-        lastDetectedCode = code;
-        lastDetectionTime = new Date().getTime();
-    });
-
-    // スキャンエラー時の処理（バーコードのハイライト表示）
-    Quagga.onProcessed(function(result) {
-        const drawingCtx = Quagga.canvas.ctx.overlay;
-        const drawingCanvas = Quagga.canvas.dom.overlay;
-
-        if (result) {
-            if (result.boxes) {
-                drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.width), parseInt(drawingCanvas.height));
-                result.boxes.filter(function (box) {
-                    return box !== result.box;
-                }).forEach(function (box) {
-                    Quagga.ImageDebug.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
-                });
-            }
-
-            if (result.box) {
-                Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCtx, {color: "#00F", lineWidth: 2});
-            }
-
-            if (result.codeResult && result.codeResult.code) {
-                Quagga.ImageDebug.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: 'red', lineWidth: 3});
-            }
-        }
-    });
-}
-
-// ページ読み込みが完了したらスキャナーを起動
-window.addEventListener('load', startScanner);
-
-// 画面サイズ変更時などにスキャナーをリセットする（任意）
-// これにより、画面の向きを変えた時などにカメラ映像が適切に調整されます。
-window.addEventListener('resize', function() {
-    if (Quagga.initialized) {
-        Quagga.stop();
+        // 必要に応じて、スキャン後にQuaggaを一時停止し、重複スキャンを防ぐ
+        // Quagga.stop();
+        // setTimeout(() => Quagga.start(), 2000); // 2秒後にスキャン再開
+    } else {
+        updateDebugInfo('No barcode code in result.', 'orange');
     }
-    // 少し遅延させてから起動しないと、resizeイベントが連続で発火しすぎることがある
-    setTimeout(startScanner, 500);
+});
+
+// =======================================================
+// 映像処理時のイベントハンドラ (デバッグ描画用)
+// =======================================================
+
+Quagga.onProcessed(function(result) {
+    // 描画用のCanvasコンテキストを取得
+    const drawingCtx = Quagga.canvas.ctx.overlay;
+    const drawingCanvas = Quagga.canvas.dom.overlay;
+
+    // 前回の描画をクリア
+    drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
+
+    if (result) {
+        // 検出された全てのボックスを描画 (メインのボックス以外)
+        if (result.boxes) {
+            result.boxes.filter(function (box) {
+                return box !== result.box;
+            }).forEach(function (box) {
+                Quagga.ImageDebug.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
+            });
+        }
+
+        // メインのバーコードのボックスを描画
+        if (result.box) {
+            Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCtx, {color: "#00F", lineWidth: 2});
+        }
+
+        // 検出されたバーコードの線を描画
+        if (result.codeResult && result.codeResult.code) {
+            Quagga.ImageDebug.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: "red", lineWidth: 3});
+        }
+    }
 });

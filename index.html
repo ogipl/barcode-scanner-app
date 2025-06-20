@@ -3,24 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TRIAL様 検品</title>
-    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
-    </head>
+    <title>バーコードスキャンアプリ</title>
+    <link rel="stylesheet" href="style.css">
+</head>
 <body>
-    <h1>バーコード検品アプリ</h1>
-
-    <div>
-        <h2>カメラ映像</h2>
-        <video id="camera-feed" autoplay playsinline style="width:100%; max-width: 500px; border: 1px solid black;"></video>
+    <h1>バーコードスキャン</h1>
+    <div class="camera-container">
+        <video id="camera-feed" autoplay muted playsinline></video>
+        <canvas class="drawingBuffer"></canvas>
     </div>
+    <p id="result">準備中...</p>
+    <p id="debug-info" style="color: grey; font-size: 0.8em; margin-top: 10px;"></p>
 
-    <div>
-        <h2>スキャン結果</h2>
-        <p>1つ目のバーコード: <span id="barcode1-display">まだスキャンしていません</span></p>
-        <p>2つ目のバーコード: <span id="barcode2-display">まだスキャンしていません</span></p>
-        <p>結果: <strong id="result-display" style="font-size: 2em;">待機中...</strong></p>
-    </div>
-
+    <script src="quagga.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
