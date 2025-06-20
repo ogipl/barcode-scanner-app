@@ -6,7 +6,6 @@ const storedCodeDisplay = document.getElementById('storedCodeDisplay');
 const scannedCodeDisplay = document.getElementById('scannedCodeDisplay');
 const checkResultDisplay = document.getElementById('checkResultDisplay');
 const debugInfoDisplay = document.getElementById('debug-info');
-// const scanOverlay = document.getElementById('scan-overlay'); // これはCSSで制御するので、JSからは参照不要です。削除します。
 
 // グローバル変数
 let html5QrCode;
@@ -72,14 +71,13 @@ async function startScanner() {
 
     const qrCodeConfig = {
         fps: 10, // Frames per second for scanning
-        // qrbox のサイズを調整。CSSのカメラ表示サイズに合わせて調整。
-        // ここでの qrbox は、スキャン"検出エリア"のサイズ。
-        qrbox: { width: 250, height: 250 }, // スキャン精度安定のため、このサイズを維持
+        // qrbox のサイズを再調整。
+        // 広めのサイズに設定し、スキャン精度とクールダウンロジックとの相性を良くする
+        qrbox: { width: 280, height: 280 }, // この値を再調整 (少し大きく)
         videoConstraints: {
             facingMode: { exact: "environment" }, // 背面カメラを強制
             // ideal な解像度は指定せず、ブラウザに最適なものを選ばせることで、
             // カメラ起動の安定性を高めます。
-            // min: { width: 640, height: 480 } // 必要であれば最低解像度を指定
         },
     };
 
@@ -89,7 +87,7 @@ async function startScanner() {
             qrCodeConfig,
             (decodedText, decodedResult) => {
                 // スキャン成功時のコールバック
-                // クールダウン中でない、かつ前回と同じバーコードでない場合のみ処理
+                // クールダウン中でない、かつ前回スキャンしたバーコードと異なる場合のみ処理
                 if (!scanCooldownActive && decodedText !== lastScannedCode) {
                     scanCooldownActive = true; // クールダウン開始
                     lastScannedCode = decodedText; // 今回スキャンしたコードを記録
@@ -97,16 +95,19 @@ async function startScanner() {
                     handleBarcodeScan(decodedText); // スキャン結果を処理
 
                     // スキャン結果処理後、一定時間クールダウンを維持
+                    // このクールダウン中に同じバーコードが再検出されても処理を無視します。
+                    // ユーザーがバーコードを画面から外す時間を十分に確保するため、長めに設定
                     setTimeout(() => {
                         scanCooldownActive = false;
                         lastScannedCode = null; // クールダウン終了時に前回スキャンコードをリセット
                         updateDebugInfo("Cooldown finished. Ready for next scan.", 'blue');
+                        // クールダウン終了後に、現在の状態に応じたメッセージを表示
                         if (storedStoreCode === null) {
                             updateStatus('店舗コードをスキャンしてください', 'black');
                         } else {
                             updateStatus('商品バーコードをスキャンしてください', 'blue');
                         }
-                    }, 2500); // 2.5秒のクールダウン (メッセージ確認時間として確保)
+                    }, 3000); // 3秒のクールダウン (前回より長く)
 
                 } else if (scanCooldownActive) {
                     updateDebugInfo(`Ignoring scan during cooldown: ${decodedText}`, 'orange'); 
