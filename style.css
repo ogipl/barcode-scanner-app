@@ -1,64 +1,63 @@
 body {
     font-family: sans-serif;
     text-align: center;
-    margin: 10px; /* 全体のマージンを少し減らす */
+    margin: 0; /* マージンを0にして、paddingで調整 */
+    padding: 10px; /* 全体のパディング */
     background-color: #f0f0f0;
     overflow: hidden; /* スクロールバーが表示されないようにする */
     height: 100vh; /* 画面の高さいっぱいに */
     display: flex; /* flexboxで要素を縦方向に配置 */
     flex-direction: column;
-    justify-content: space-between; /* 要素間にスペースを均等に配分 */
+    /* justify-content: space-between; を使用すると要素間に隙間ができるので、
+       今回は各要素の margin-bottom で調整し、flex-growでカメラが広がるようにする */
 }
 
 h1 {
     color: #333;
-    margin-top: 10px; /* タイトルの上マージンを少し減らす */
+    margin-top: 5px; /* タイトルの上マージンをさらに減らす */
     margin-bottom: 10px; /* タイトルとカメラの間に少し余白 */
-    font-size: 1.8em; /* タイトルを少し小さくする */
+    font-size: 1.6em; /* タイトルをさらに小さくする */
 }
 
 /* カメラコンテナのサイズ調整 */
 .camera-container {
     position: relative;
     width: 90%; /* 画面幅の90%を使用 */
-    max-width: 300px; /* カメラ映像の最大幅をさらに小さく（例：300px） */
-    /* 縦の長さを制御するためにaspect-ratioを使用するか、padding-topで高さの比率を固定 */
-    /* aspect-ratio: 4/3; /* 幅が300pxなら高さは225pxになる (例) */
+    max-width: 300px; /* カメラ映像の最大幅を300pxに設定 */
 
-    /* 縦方向のサイズを強制的に小さくするアプローチ */
-    height: 200px; /* ここで固定の高さを指定（例：200px、調整可能） */
+    /* 縦の長さを「幅に対する比率」で指定するアプローチに戻す */
+    padding-bottom: 75%; /* 幅の75%を高さとする (例: 4:3のアスペクト比) */
+    height: 0; /* padding-bottom を使うため高さを0にする */
     overflow: hidden; /* 高さを超える部分を隠す */
 
     margin: 0 auto 15px auto; /* 中央寄せ、下部に余白を調整 */
     border: 2px solid #ccc;
     background-color: black;
 
-    /* Flexboxを使って内部要素を中央に配置する準備 */
-    display: flex;
+    /* flexアイテムとして残りのスペースを埋める */
+    flex-grow: 1;
+    display: flex; /* 内部の #qr-reader を中央に配置するため */
     justify-content: center;
     align-items: center;
 }
 
 /* html5-qrcodeが挿入する要素に直接サイズを適用 */
 #qr-reader {
+    position: absolute; /* 親の .camera-container 内に絶対配置 */
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     display: block;
-    /* この div 内に video と canvas が挿入される */
-    /* flexアイテムとして均等に広がる */
-    flex-grow: 1;
 }
 
 /* html5-qrcodeが内部で作成するvideo要素への調整 */
 #qr-reader video {
-    /* 親要素の高さにフィットさせ、幅は自動調整し、はみ出た部分はカット */
-    height: 100% !important; /* カメラの縦の長さを親コンテナの高さに合わせる */
-    width: auto !important;   /* 幅は自動調整 */
+    width: 100% !important; /* 親の #qr-reader の幅に合わせる */
+    height: 100% !important; /* 親の #qr-reader の高さに合わせる */
     display: block;
-    object-fit: cover; /* アスペクト比を保ちつつ、縦いっぱいに広がり、横は切れる */
-    /* 必要に応じて横方向を中央揃えにする */
-    margin-left: auto;
-    margin-right: auto;
+    object-fit: cover; /* アスペクト比を保ちつつコンテナにフィット */
+    /* !important を使うことで、html5-qrcodeのインラインスタイルを上書き */
 }
 
 /* html5-qrcodeが内部で作成するcanvas要素への調整 */
@@ -72,21 +71,22 @@ h1 {
 
 /* 情報表示エリアのスタイル */
 .info-display {
-    margin-bottom: 10px; /* 情報表示とデバッグ情報の間に少し余白を減らす */
-    padding: 10px; /* パディングも少し減らす */
+    margin-bottom: 5px; /* 情報表示とデバッグ情報の間に少し余白を減らす */
+    padding: 8px; /* パディングもさらに減らす */
     border: 1px solid #ddd;
     border-radius: 8px;
     background-color: #fff;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 90%; /* 画面幅に合わせる */
     max-width: 640px;
     margin-left: auto;
     margin-right: auto;
-    font-size: 0.9em; /* 文字を少し小さくする */
+    font-size: 0.85em; /* 文字を少し小さくする */
 }
 
 .info-display p {
-    margin: 4px 0; /* 各情報行の上下余白を減らす */
-    font-size: 1em; /* 親の0.9emに対して相対的に */
+    margin: 2px 0; /* 各情報行の上下余白をさらに減らす */
+    font-size: 1em;
 }
 
 .info-display span {
@@ -95,9 +95,9 @@ h1 {
 }
 
 #debug-info {
-    font-size: 0.7em; /* デバッグ情報をさらに小さく */
+    font-size: 0.65em; /* デバッグ情報をさらに小さく */
     color: #666;
     font-weight: normal;
     margin-top: auto; /* debug-infoを一番下に寄せる */
-    padding-bottom: 10px; /* 下部マージン */
+    padding-bottom: 5px; /* 下部マージン */
 }

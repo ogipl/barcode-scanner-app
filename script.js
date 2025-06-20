@@ -38,11 +38,14 @@ async function startScanner() {
 
     const qrCodeConfig = {
         fps: 10,
-        qrbox: { width: 250, height: 250 },
+        // qrbox のサイズを小さく調整し、スマホ画面に収まるようにする
+        // 例: 縦横150pxの正方形
+        qrbox: { width: 150, height: 150 },
         videoConstraints: {
             facingMode: { exact: "environment" },
-            width: { ideal: 640 },
-            height: { ideal: 480 },
+            // 解像度を少し低めに設定してパフォーマンス改善を試みる
+            width: { ideal: 480 },
+            height: { ideal: 360 },
         },
     };
 
@@ -67,10 +70,10 @@ async function startScanner() {
                     }, 1500); // 1.5秒のクールダウン (調整可能)
                 } else if (scanCooldownActive) {
                     // クールダウン中の場合はスキャンを無視
-                    updateDebugInfo(`Ignoring scan during cooldown: ${decodedText}`, 'orange');
+                    // updateDebugInfo(`Ignoring scan during cooldown: ${decodedText}`, 'orange'); // デバッグログはうるさくなるのでコメントアウト
                 } else if (decodedText === lastScannedCode) {
                     // 同じバーコードが連続して検出された場合は無視
-                    updateDebugInfo(`Ignoring duplicate scan: ${decodedText}`, 'orange');
+                    // updateDebugInfo(`Ignoring duplicate scan: ${decodedText}`, 'orange'); // デバッグログはうるさくなるのでコメントアウト
                 }
             },
             (errorMessage) => {
