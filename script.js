@@ -76,56 +76,89 @@ cameraFeed.addEventListener('ended', () => {
 });
 
 // =======================================================
-// QuaggaJSの初期化と設定
+// カメラを起動し、QuaggaJSを初期化する関数
 // =======================================================
-
-Quagga.init({
-    inputStream: {
-        name: "Live",
-        type: "LiveStream",
-        // target: cameraFeed, // ← この行はコメントアウトまたは削除された状態です
-        area: { // クロップエリア (任意: カメラ映像の一部のみをスキャンする場合)
-            top: "0%", // 上から0%
-            right: "0%", // 右から0%
-            left: "0%", // 左から0%
-            bottom: "0%" // 下から0%
-        },
-        target: document.querySelector('#camera-feed'), // ← この行が追加されました
-        constraints: {
-            width: { min: 480, ideal: 640, max: 1280 },
-            height: { min: 320, ideal: 480, max: 720 },
-            facingMode: "environment" // 背面カメラを優先 (iPhoneの場合)
-        },
-    },
-    decoder: {
-        readers: ["code_39_reader"],
-        debug: {
-            showCanvas: false,
-            showPatches: false,
-            showFoundPatches: false,
-            showSkeleton: false,
-            showLabels: false,
-            showPatchLabels: false,
-            showRemainingPatchLabels: false,
-            boxFromPatches: {
-                showTransformed: false,
-                showTransformedBox: false,
-                showBB: false
+async function initBarcodeScanner() {
+    updateDebugInfo("Attempting to get camera media stream...", 'blue');
+    try {
+        // WebRTCのgetUserMediaを使って直接カメラ映像ストリームを取得
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                width: { min: 480, ideal: 640, max: 1280 },
+                height: { min: 320, ideal: 480, max: 720 },
+                facingMode: "environment" // 背面カメラを優先 (iPhoneの場合)
             }
-        }
-    },
-    locate: true
-}, function(err) {
-    if (err) {
-        // QuaggaJS初期化時のエラーハンドリング
-        updateDebugInfo(`QuaggaJS Init Error: ${err.name || err.message || err.toString()}`, 'red');
-        console.error("QuaggaJS 初期化エラー詳細:", err);
+        });
+        updateDebugInfo("Camera stream obtained successfully.", 'green');
+        
+        // 取得したストリームをvideo要素に設定
+        cameraFeed.srcObject = stream;
+        cameraFeed.play().then(() => {
+            updateDebugInfo('Video play() after getUserMedia successful.', 'green');
 
-        let errorMessage = "カメラの起動に失敗しました。";
+            // QuaggaJSを初期化
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    // ここではtargetをvideo要素自体にする
+                    target: cameraFeed, // 直接cameraFeed要素を渡す
+                    area: {
+                        top: "0%",
+                        right: "0%",
+                        left: "0%",
+                        bottom: "0%"
+                    },
+                    // constraintsはgetUserMediaで指定したので、ここでは不要
+                },
+                decoder: {
+                    readers: ["code_39_reader"],
+                    debug: {
+                        showCanvas: false,
+                        showPatches: false,
+                        showFoundPatches: false,
+                        showSkeleton: false,
+                        showLabels: false,
+                        showPatchLabels: false,
+                        showRemainingPatchLabels: false,
+                        boxFromPatches: {
+                            showTransformed: false,
+                            showTransformedBox: false,
+                            showBB: false
+                        }
+                    }
+                },
+                locate: true
+            }, function(err) {
+                if (err) {
+                    updateDebugInfo(`QuaggaJS Init Error after stream: ${err.name || err.message || err.toString()}`, 'red');
+                    console.error("QuaggaJS 初期化エラー詳細 (after stream):", err);
+                    resultDisplay.textContent = `カメラの起動に失敗しました: ${err.name || err.message || '不明'}`;
+                    resultDisplay.style.color = "red";
+                    alert(resultDisplay.textContent);
+                    return;
+                }
+                updateDebugInfo("QuaggaJS Initialization successful. Starting scan.", 'green');
+                resultDisplay.textContent = "最初のバーコードをスキャンしてください";
+                resultDisplay.style.color = "blue";
+                Quagga.start();
+            });
+
+        }).catch(e => {
+            updateDebugInfo(`Video play() after getUserMedia failed: ${e.name} - ${e.message}`, 'red');
+            resultDisplay.textContent = `ビデオ再生失敗: ${e.name} - ${e.message}`;
+            resultDisplay.style.color = "red";
+        });
+
+    } catch (err) {
+        updateDebugInfo(`getUserMedia Error: ${err.name || err.message || err.toString()}`, 'red');
+        console.error("getUserMedia 詳細エラー:", err);
+
+        let errorMessage = "カメラのアクセスに失敗しました。";
         if (err.name === 'NotAllowedError') {
-            errorMessage += " カメラへのアクセスが拒否されました。ブラウザの許可設定を確認してください。";
+            errorMessage += " アクセスが拒否されました。ブラウザの許可設定とiPhoneの設定（プライバシー->カメラ）を確認してください。";
         } else if (err.name === 'NotFoundError') {
-            errorMessage += " カメラが見つかりませんでした。接続を確認してください。";
+            errorMessage += " カメラが見つかりませんでした。";
         } else if (err.name === 'NotReadableError') {
             errorMessage += " カメラが使用中です。他のアプリやタブを閉じてください。";
         } else if (err.name === 'OverconstrainedError') {
@@ -137,35 +170,16 @@ Quagga.init({
         }
         resultDisplay.textContent = errorMessage;
         resultDisplay.style.color = "red";
-        alert(errorMessage); // アラートも表示して、ユーザーに分かりやすくする
-        return;
+        alert(errorMessage);
     }
-    updateDebugInfo("QuaggaJS Initialization successful. Starting scan.", 'green');
-    resultDisplay.textContent = "最初のバーコードをスキャンしてください";
-    resultDisplay.style.color = "blue";
-    Quagga.start(); // ここでスキャン開始
+}
 
-    // ★★★ここからデバッグログの追加部分★★★
-    setTimeout(() => {
-        if (cameraFeed && cameraFeed.srcObject) {
-            const tracks = cameraFeed.srcObject.getTracks();
-            if (tracks.length > 0) {
-                updateDebugInfo(`Video stream has ${tracks.length} tracks. First track enabled: ${tracks[0].enabled}`, 'green');
-                // 映像の縦横比を確認する
-                if (cameraFeed.videoWidth > 0 && cameraFeed.videoHeight > 0) {
-                    updateDebugInfo(`Video element reports actual dimensions: ${cameraFeed.videoWidth}x${cameraFeed.videoHeight}`, 'green');
-                } else {
-                    updateDebugInfo('Video element reports 0x0 dimensions after start.', 'orange');
-                }
-            } else {
-                updateDebugInfo('Video srcObject has no tracks!', 'red');
-            }
-        } else {
-            updateDebugInfo('cameraFeed or srcObject is null after Quagga.start()!', 'red');
-        }
-    }, 3000); // Quagga.start()から3秒後にチェック
-    // ★★★ここまでデバッグログの追加部分★★★
+// ページロード時にバーコードスキャナーを初期化する
+// DOMContentLoadedで確実にHTML要素が利用可能になってから実行
+document.addEventListener('DOMContentLoaded', () => {
+    initBarcodeScanner();
 });
+
 
 // =======================================================
 // バーコード検出時のイベントハンドラ
