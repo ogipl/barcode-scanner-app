@@ -38,14 +38,14 @@ async function startScanner() {
 
     const qrCodeConfig = {
         fps: 10,
-        // qrbox のサイズを小さく調整し、スマホ画面に収まるようにする
-        // 例: 縦横150pxの正方形
-        qrbox: { width: 150, height: 150 }, // この値に戻します
+        // qrbox のサイズを調整 (カメラが大きく映っていた時の設定に戻す)
+        // これで、スキャンエリアが適切に機能することを期待
+        qrbox: { width: 250, height: 250 }, // この値を再度調整 (大きめに)
         videoConstraints: {
             facingMode: { exact: "environment" },
-            // 解像度を少し低めに設定してパフォーマンス改善を試みる
-            width: { ideal: 480 }, // この値に戻します
-            height: { ideal: 360 }, // この値に戻します
+            // 解像度は前回の動作していた状態を維持（ブラウザが最適なものを選択）
+            width: { ideal: 480 }, // この値を維持
+            height: { ideal: 360 }, // この値を維持
         },
     };
 
@@ -55,25 +55,25 @@ async function startScanner() {
             qrCodeConfig,
             (decodedText, decodedResult) => {
                 // スキャン成功時のコールバック
-                // クールダウン中でない、かつ前回と同じバーコードでない場合のみ処理
+                // クールダウン中でない、かつ前回スキャンしたバーコードと異なる場合のみ処理
                 if (!scanCooldownActive && decodedText !== lastScannedCode) {
                     scanCooldownActive = true; // クールダウン開始
-                    lastScannedCode = decodedText; // 前回スキャンしたコードを記録
+                    lastScannedCode = decodedText; // 今回スキャンしたコードを記録
 
                     updateDebugInfo(`Barcode detected: ${decodedText}`, 'green');
                     handleBarcodeScan(decodedText);
 
-                    // 処理後、少し待ってからクールダウンを解除し、次のスキャンを受け付ける
-                    setTimeout(() => {
-                        scanCooldownActive = false;
-                        lastScannedCode = null; // クールダウン終了時に前回スキャンコードをリセット
-                    }, 1500); // 1.5秒のクールダウン (調整可能)
+                    // handleBarcodeScan の処理が終わった後でクールダウンを解除するようにロジックを変更
+                    // => handleBarcodeScan関数内で、必要な処理が完了した後に
+                    //    クールダウンを解除するタイマーを設定するように変更します。
+                    // ここでの setTimeout は削除し、handleBarcodeScan 内に移します。
+
                 } else if (scanCooldownActive) {
                     // クールダウン中の場合はスキャンを無視
-                    // updateDebugInfo(`Ignoring scan during cooldown: ${decodedText}`, 'orange'); 
+                    updateDebugInfo(`Ignoring scan during cooldown: ${decodedText}`, 'orange'); 
                 } else if (decodedText === lastScannedCode) {
                     // 同じバーコードが連続して検出された場合は無視
-                    // updateDebugInfo(`Ignoring duplicate scan: ${decodedText}`, 'orange'); 
+                    updateDebugInfo(`Ignoring duplicate scan: ${decodedText}`, 'orange'); 
                 }
             },
             (errorMessage) => {
@@ -128,6 +128,14 @@ function handleBarcodeScan(scannedCode) {
         updateDebugInfo(`店舗コードを保持しました: ${storedStoreCode}`, 'green');
         alert(`店舗コードを保存しました: ${storedStoreCode}\n次に商品バーコードをスキャンしてください。`);
 
+        // 店舗コード保存後、クールダウンを解除し、次のスキャンを許可
+        // ただし、すぐに次のスキャンを受け付けないように、少し時間をおく
+        setTimeout(() => {
+            scanCooldownActive = false; // クールダウン解除
+            lastScannedCode = null; // 前回スキャンコードをリセット
+            updateDebugInfo("Ready for next scan (store code saved).", 'blue');
+        }, 1500); // 1.5秒のクールダウン (調整可能)
+
     } else {
         // 店舗コードが既に保持されている場合（2回目のスキャン = 商品バーコード）
         if (scannedCode === storedStoreCode) {
@@ -148,6 +156,14 @@ function handleBarcodeScan(scannedCode) {
         // 検品が完了したら、次のサイクルに備えて店舗コードをリセット
         storedStoreCode = null;
         storedCodeDisplay.textContent = 'なし';
+
+        // 検品結果表示後、クールダウンを解除し、次のスキャンを許可
+        // ただし、すぐに次のスキャンを受け付けないように、少し時間をおく
+        setTimeout(() => {
+            scanCooldownActive = false; // クールダウン解除
+            lastScannedCode = null; // 前回スキャンコードをリセット
+            updateDebugInfo("Ready for next scan (item checked).", 'blue');
+        }, 2000); // 2秒のクールダウン (検品結果確認時間として少し長め)
     }
 }
 
