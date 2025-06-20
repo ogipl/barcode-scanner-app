@@ -4,8 +4,9 @@
 const currentStateDisplay = document.getElementById('currentStateDisplay');
 const storedCodeDisplay = document.getElementById('storedCodeDisplay');
 const scannedCodeDisplay = document.getElementById('scannedCodeDisplay');
-const checkResultDisplay = document.getElementById('checkResultDisplay'); // 検品結果用
+const checkResultDisplay = document.getElementById('checkResultDisplay');
 const debugInfoDisplay = document.getElementById('debug-info');
+const scanOverlay = document.getElementById('scan-overlay'); // 新しく追加したオーバーレイ要素
 
 // グローバル変数
 let html5QrCode;
@@ -17,35 +18,69 @@ let scanCooldownActive = false; // クールダウン中のフラグ
 function updateDebugInfo(message, color = 'grey') {
     debugInfoDisplay.textContent = `Debug: ${new Date().toLocaleTimeString()} - ${message}`;
     debugInfoDisplay.style.color = color;
-    console.log(`[DEBUG] ${message}`); // コンソールにも出力
+    console.log(`[DEBUG] ${message}`);
 }
 
+// 状態メッセージを更新するヘルパー関数
+function updateStatus(message, color = 'black', autoClearMs = 0) {
+    currentStateDisplay.textContent = message;
+    currentStateDisplay.style.color = color;
+    if (autoClearMs > 0) {
+        setTimeout(() => {
+            if (currentStateDisplay.textContent === message) { // 同じメッセージの場合のみクリア
+                currentStateDisplay.textContent = '準備中...';
+                currentStateDisplay.style.color = 'black';
+            }
+        }, autoClearMs);
+    }
+}
+
+// 検品結果を更新するヘルパー関数
+function updateCheckResult(message, color = 'black', autoClearMs = 0) {
+    checkResultDisplay.textContent = message;
+    checkResultDisplay.style.color = color;
+    if (autoClearMs > 0) {
+        setTimeout(() => {
+            if (checkResultDisplay.textContent === message) { // 同じメッセージの場合のみクリア
+                checkResultDisplay.textContent = '';
+                checkResultDisplay.style.color = 'black';
+            }
+        }, autoClearMs);
+    }
+}
+
+
 // =======================================================
-// バーコードスキャン開始関数 (html5-qrcode用 - アプリ起動時に一度だけ呼び出す)
+// バーコードスキャン開始関数 (html5-qrcode用)
 // =======================================================
 async function startScanner() {
-    currentStateDisplay.textContent = 'カメラ起動中...';
-    currentStateDisplay.style.color = 'blue';
+    updateStatus('カメラ起動中...', 'blue');
     updateDebugInfo("Initializing HTML5-QRCode scanner for continuous scanning...", 'blue');
 
     const qrCodeRegionId = "qr-reader";
 
-    // 既にインスタンスがあれば停止（念のため、もし残っていたら）
+    // 既にインスタンスがあれば停止
     if (html5QrCode && html5QrCode.isScanning) {
-        await html5QrCode.stop();
+        try {
+            await html5QrCode.stop();
+            updateDebugInfo("Previous scanner stopped.", 'grey');
+        } catch (e) {
+            updateDebugInfo(`Error stopping previous scanner: ${e}`, 'orange');
+        }
     }
     html5QrCode = new Html5Qrcode(qrCodeRegionId);
 
     const qrCodeConfig = {
-        fps: 10,
-        // qrbox のサイズを調整 (カメラが大きく映っていた時の設定に戻す)
-        // これで、スキャンエリアが適切に機能することを期待
-        qrbox: { width: 250, height: 250 }, // この値を再度調整 (大きめに)
+        fps: 10, // Frames per second for scanning
+        // qrbox のサイズを調整。CSSのカメラ表示サイズに合わせて調整。
+        // ここでの qrbox は、スキャン"検出エリア"のサイズ。
+        // ユーザーが視覚的に合わせるための枠はCSSで別途overlayを用意します。
+        qrbox: { width: 200, height: 200 }, // 推奨サイズ。調整可能。
         videoConstraints: {
-            facingMode: { exact: "environment" },
-            // 解像度は前回の動作していた状態を維持（ブラウザが最適なものを選択）
-            width: { ideal: 480 }, // この値を維持
-            height: { ideal: 360 }, // この値を維持
+            facingMode: { exact: "environment" }, // 背面カメラを強制
+            // ideal な解像度は指定せず、ブラウザに最適なものを選ばせることで、
+            // カメラ起動の安定性を高めます。
+            // min: { width: 640, height: 480 } // 必要であれば最低解像度を指定
         },
     };
 
@@ -55,24 +90,30 @@ async function startScanner() {
             qrCodeConfig,
             (decodedText, decodedResult) => {
                 // スキャン成功時のコールバック
-                // クールダウン中でない、かつ前回スキャンしたバーコードと異なる場合のみ処理
+                // クールダウン中でない、かつ前回と同じバーコードでない場合のみ処理
                 if (!scanCooldownActive && decodedText !== lastScannedCode) {
                     scanCooldownActive = true; // クールダウン開始
                     lastScannedCode = decodedText; // 今回スキャンしたコードを記録
-
                     updateDebugInfo(`Barcode detected: ${decodedText}`, 'green');
-                    handleBarcodeScan(decodedText);
+                    handleBarcodeScan(decodedText); // スキャン結果を処理
 
-                    // handleBarcodeScan の処理が終わった後でクールダウンを解除するようにロジックを変更
-                    // => handleBarcodeScan関数内で、必要な処理が完了した後に
-                    //    クールダウンを解除するタイマーを設定するように変更します。
-                    // ここでの setTimeout は削除し、handleBarcodeScan 内に移します。
+                    // スキャン結果処理後、一定時間クールダウンを維持
+                    // これにより、同一バーコードの連続スキャンや、次のバーコードが
+                    // 誤って読み込まれることを防ぎます。
+                    setTimeout(() => {
+                        scanCooldownActive = false;
+                        lastScannedCode = null; // クールダウン終了時に前回スキャンコードをリセット
+                        updateDebugInfo("Cooldown finished. Ready for next scan.", 'blue');
+                        if (storedStoreCode === null) {
+                            updateStatus('店舗コードをスキャンしてください', 'black');
+                        } else {
+                            updateStatus('商品バーコードをスキャンしてください', 'blue');
+                        }
+                    }, 2500); // 2.5秒のクールダウン (アラートがないため少し長めに)
 
                 } else if (scanCooldownActive) {
-                    // クールダウン中の場合はスキャンを無視
                     updateDebugInfo(`Ignoring scan during cooldown: ${decodedText}`, 'orange'); 
                 } else if (decodedText === lastScannedCode) {
-                    // 同じバーコードが連続して検出された場合は無視
                     updateDebugInfo(`Ignoring duplicate scan: ${decodedText}`, 'orange'); 
                 }
             },
@@ -82,12 +123,10 @@ async function startScanner() {
             }
         );
         updateDebugInfo("Camera started successfully. Ready to scan continuously.", 'green');
-        currentStateDisplay.textContent = '店舗コードをスキャンしてください';
-        currentStateDisplay.style.color = 'black'; // 初期の状態メッセージ
+        updateStatus('店舗コードをスキャンしてください', 'black');
         storedCodeDisplay.textContent = 'なし';
         scannedCodeDisplay.textContent = 'なし';
-        checkResultDisplay.textContent = '';
-
+        updateCheckResult(''); // 初期化
 
     } catch (err) {
         updateDebugInfo(`HTML5-QRCode Start Error: ${err.name || err.message || err.toString()}`, 'red');
@@ -107,8 +146,7 @@ async function startScanner() {
         } else {
             errorMessage += ` エラーコード: ${err.name || err.message || '不明'}`;
         }
-        currentStateDisplay.textContent = errorMessage;
-        currentStateDisplay.style.color = "red";
+        updateStatus(errorMessage, 'red');
     }
 }
 
@@ -122,48 +160,24 @@ function handleBarcodeScan(scannedCode) {
         // まだ店舗コードが保持されていない場合（最初のスキャン）
         storedStoreCode = scannedCode;
         storedCodeDisplay.textContent = storedStoreCode;
-        currentStateDisplay.textContent = '商品バーコードをスキャンしてください';
-        currentStateDisplay.style.color = 'blue';
-        checkResultDisplay.textContent = ''; // 結果をクリア
+        updateStatus('商品バーコードをスキャンしてください', 'blue');
+        updateCheckResult('店舗コードを保存しました', 'green', 2000); // UIメッセージ
         updateDebugInfo(`店舗コードを保持しました: ${storedStoreCode}`, 'green');
-        alert(`店舗コードを保存しました: ${storedStoreCode}\n次に商品バーコードをスキャンしてください。`);
-
-        // 店舗コード保存後、クールダウンを解除し、次のスキャンを許可
-        // ただし、すぐに次のスキャンを受け付けないように、少し時間をおく
-        setTimeout(() => {
-            scanCooldownActive = false; // クールダウン解除
-            lastScannedCode = null; // 前回スキャンコードをリセット
-            updateDebugInfo("Ready for next scan (store code saved).", 'blue');
-        }, 1500); // 1.5秒のクールダウン (調整可能)
 
     } else {
         // 店舗コードが既に保持されている場合（2回目のスキャン = 商品バーコード）
         if (scannedCode === storedStoreCode) {
-            checkResultDisplay.textContent = 'OK';
-            checkResultDisplay.style.color = 'green';
-            currentStateDisplay.textContent = '検品完了: OK！次の店舗コードをスキャンしてください';
-            currentStateDisplay.style.color = 'green';
+            updateCheckResult('OK', 'green');
+            updateStatus('検品完了: OK！次の店舗コードをスキャンしてください', 'green');
             updateDebugInfo('検品結果: OK (コード一致)', 'green');
-            alert('検品結果: OK');
         } else {
-            checkResultDisplay.textContent = 'NG';
-            checkResultDisplay.style.color = 'red';
-            currentStateDisplay.textContent = '検品完了: NG...次の店舗コードをスキャンしてください';
-            currentStateDisplay.style.color = 'red';
+            updateCheckResult('NG', 'red');
+            updateStatus('検品完了: NG...次の店舗コードをスキャンしてください', 'red');
             updateDebugInfo('検品結果: NG (コード不一致)', 'red');
-            alert(`検品結果: NG\n店舗コード: ${storedStoreCode}\n商品コード: ${scannedCode}`);
         }
         // 検品が完了したら、次のサイクルに備えて店舗コードをリセット
         storedStoreCode = null;
         storedCodeDisplay.textContent = 'なし';
-
-        // 検品結果表示後、クールダウンを解除し、次のスキャンを許可
-        // ただし、すぐに次のスキャンを受け付けないように、少し時間をおく
-        setTimeout(() => {
-            scanCooldownActive = false; // クールダウン解除
-            lastScannedCode = null; // 前回スキャンコードをリセット
-            updateDebugInfo("Ready for next scan (item checked).", 'blue');
-        }, 2000); // 2秒のクールダウン (検品結果確認時間として少し長め)
     }
 }
 

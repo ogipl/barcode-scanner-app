@@ -1,39 +1,57 @@
 body {
     font-family: sans-serif;
     text-align: center;
-    margin: 20px;
+    margin: 10px; /* 全体のマージンを少し減らす */
     background-color: #f0f0f0;
+    overflow: hidden; /* スクロールバーが表示されないようにする */
+    height: 100vh; /* 画面の高さいっぱいに */
+    display: flex; /* flexboxで要素を縦方向に配置 */
+    flex-direction: column;
+    justify-content: space-between; /* 要素間にスペースを均等に配分 */
 }
 
 h1 {
     color: #333;
-    margin-bottom: 20px;
-    font-size: 16px !important; /* フォントサイズはこれで動作していました */
+    margin-top: 5px;
+    margin-bottom: 10px;
+    font-size: 16px !important; /* H1フォントサイズは維持 */
 }
 
+/* カメラコンテナのサイズ調整 */
 .camera-container {
     position: relative;
-    width: 100%;
-    max-width: 640px; /* カメラサイズは元の大きい状態に戻します */
-    margin: 0 auto 30px auto;
-    overflow: hidden;
+    width: 90%; /* 画面幅の90%を使用 */
+    max-width: 320px; /* カメラ映像の最大幅を320pxに設定 (前より少し小さい) */
+
+    /* アスペクト比を維持しつつ、高さが幅の75%になるように設定 */
+    padding-bottom: 75%; /* 幅の75%が高さになる (4:3のアスペクト比) */
+    height: 0; /* padding-bottom を使う場合は高さを0にする */
+    overflow: hidden; /* はみ出る部分を隠す */
     border: 2px solid #ccc;
     background-color: black;
-    height: auto;
-    min-height: 200px;
+    margin: 0 auto 15px auto; /* 中央寄せ、下部に余白を調整 */
+    flex-grow: 1; /* 残りのスペースを埋めるように伸長 */
 }
 
+/* html5-qrcodeが挿入する要素に適用 */
 #qr-reader {
+    position: absolute; /* 親の .camera-container 内に絶対配置 */
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     display: block;
 }
 
+/* html5-qrcodeが内部で作成するvideo要素への調整 */
 #qr-reader video {
-    width: 100%;
-    height: auto;
+    width: 100%; /* 親の #qr-reader の幅に合わせる */
+    height: 100%; /* 親の #qr-reader の高さに合わせる */
+    display: block;
+    object-fit: cover; /* アスペクト比を保ちつつコンテナにフィット */
 }
 
+/* html5-qrcodeが内部で作成するcanvas要素への調整 */
 #qr-reader canvas {
     position: absolute;
     top: 0;
@@ -42,21 +60,37 @@ h1 {
     height: 100%;
 }
 
+/* スキャン補助オーバーレイ */
+#scan-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 200px; /* qrbox と同じくらいのサイズに合わせる */
+    height: 200px; /* qrbox と同じくらいのサイズに合わせる */
+    transform: translate(-50%, -50%); /* 中央配置 */
+    border: 2px dashed rgba(255, 255, 255, 0.7); /* 白い点線 */
+    pointer-events: none; /* クリックイベントを透過 */
+    box-sizing: border-box; /* パディングとボーダーを幅に含める */
+}
+
+/* 情報表示エリアのスタイル */
 .info-display {
-    margin-bottom: 30px;
-    padding: 15px;
+    margin-bottom: 10px; /* 情報表示とデバッグ情報の間に少し余白 */
+    padding: 12px; /* パディング調整 */
     border: 1px solid #ddd;
     border-radius: 8px;
     background-color: #fff;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 90%;
     max-width: 640px;
     margin-left: auto;
     margin-right: auto;
+    font-size: 0.9em;
 }
 
 .info-display p {
-    margin: 8px 0;
-    font-size: 1.1em;
+    margin: 4px 0;
+    font-size: 1em;
 }
 
 .info-display span {
@@ -65,7 +99,9 @@ h1 {
 }
 
 #debug-info {
-    font-size: 0.8em;
+    font-size: 0.7em;
     color: #666;
     font-weight: normal;
+    margin-top: auto; /* debug-infoを一番下に寄せる */
+    padding-bottom: 5px;
 }
