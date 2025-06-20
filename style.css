@@ -8,7 +8,7 @@ body {
 h1 {
     color: #333;
     margin-bottom: 20px;
-    font-size: 1.2em; /* 例えば、元の2.4emの半分（おおよそ） */
+    font-size: 16px !important; /* 強制的に16pxに設定。この値を調整してください */
 }
 
 .camera-container {
