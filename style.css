@@ -7,8 +7,10 @@ body {
 
 h1 {
     color: #333;
+    margin-bottom: 20px; /* タイトルとカメラの間に少し余白 */
 }
 
+/* カメラコンテナはそのまま */
 .camera-container {
     position: relative;
     width: 100%;
@@ -19,6 +21,7 @@ h1 {
     background-color: black; /* 映像がないときに黒背景 */
     height: auto; /* 中身に合わせて高さが自動調整 */
     min-height: 200px; /* カメラが起動するまでの最低限の高さ */
+    margin-bottom: 30px; /* カメラと情報表示の間に少し余白 */
 }
 
 /* html5-qrcodeが挿入する要素に適用 */
@@ -32,12 +35,10 @@ h1 {
 #qr-reader video {
     width: 100%;
     height: auto;
-    /* transform: scaleX(-1); /* html5-qrcodeは自動で反転を調整することが多いので、ここでは不要かもしれません */
 }
 
 /* html5-qrcodeが内部で作成するcanvas要素への調整 (必要であれば) */
 #qr-reader canvas {
-    /* 必要であればスタイルを追加 */
     position: absolute;
     top: 0;
     left: 0;
@@ -45,12 +46,59 @@ h1 {
     height: 100%;
 }
 
-
-#result, #debug-info {
-    margin-top: 20px;
-    font-size: 1.2em;
-    font-weight: bold;
+/* 新しく追加する情報表示エリアのスタイル */
+.info-display {
+    margin-bottom: 30px; /* 情報表示とデバッグ情報の間に少し余白 */
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    max-width: 640px; /* カメラコンテナと幅を合わせる */
+    margin-left: auto; /* 中央寄せ */
+    margin-right: auto; /* 中央寄せ */
 }
+
+.info-display p {
+    margin: 8px 0; /* 各情報行の上下余白 */
+    font-size: 1.1em;
+}
+
+.info-display span {
+    font-weight: bold;
+    color: #333;
+}
+
+/* 旧.controlsは不要になったため削除するか、影響しないようにしておく */
+/* .controls {
+    margin-bottom: 30px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.controls h2 {
+    color: #555;
+    margin-top: 0;
+}
+
+button {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    margin: 5px;
+}
+
+button:hover {
+    background-color: #0056b3;
+} */
+
 
 #debug-info {
     font-size: 0.8em;
