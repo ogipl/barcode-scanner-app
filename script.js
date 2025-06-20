@@ -77,13 +77,16 @@ Quagga.init({
         name: "Live",
         type: "LiveStream",
         target: cameraFeed, // HTMLのvideo要素を指定
-        // constraints: {} は削除済みのまま (カメラ設定を自動調整させるため)
+        constraints: { // ★ここを追加★
+            width: { min: 480, ideal: 640, max: 1280 }, // 解像度の幅
+            height: { min: 320, ideal: 480, max: 720 }, // 解像度の高さ
+            facingMode: "environment" // 背面カメラを優先 (iPhoneの場合)
+        },
     },
     decoder: {
-        readers: ["code_39_reader"], // 他にも必要なら追加: ["ean_reader", "code_128_reader", ...]
+        readers: ["code_39_reader"],
         debug: {
-            // デバッグ表示設定。不要な場合はfalseにするか、このオブジェクトを削除
-            showCanvas: false, // 検出領域などをCanvasに描画するか
+            showCanvas: false,
             showPatches: false,
             showFoundPatches: false,
             showSkeleton: false,
@@ -97,7 +100,7 @@ Quagga.init({
             }
         }
     },
-    locate: true // バーコードの位置特定を有効にする
+    locate: true
 }, function(err) {
     if (err) {
         // QuaggaJS初期化時のエラーハンドリング
