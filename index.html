@@ -3,15 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>バーコードスキャンアプリ</title>
+    <title>検品システム</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>バーコードスキャン</h1>
-    <div class="camera-container">
-        <div id="qr-reader" style="width:100%; height: auto;"></div>
+    <h1>検品システム</h1>
+
+    <div class="controls">
+        <h2>ステップ1: 店舗コードをスキャン</h2>
+        <button onclick="setScanMode('storeCode')">店舗コードスキャン開始</button>
+        <p>読み取った店舗コード: <span id="storeCodeDisplay" style="font-weight: bold;">未スキャン</span></p>
+
+        <h2>ステップ2: 商品バーコードをスキャン</h2>
+        <button onclick="setScanMode('productCode')">商品バーコードスキャン開始</button>
+        <p>読み取った商品バーコード: <span id="productCodeDisplay" style="font-weight: bold;">未スキャン</span></p>
+        <p>検品結果: <span id="resultDisplay" style="font-weight: bold;"></span></p>
     </div>
-    <p id="result">準備中...</p>
+
+    <div class="camera-container">
+        <div id="qr-reader"></div>
+    </div>
+    <p id="currentScanMode">現在のスキャンモード: **準備中**</p>
+    <p id="result">スキャン結果: なし</p>
     <p id="debug-info" style="color: grey; font-size: 0.8em; margin-top: 10px;"></p>
 
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
